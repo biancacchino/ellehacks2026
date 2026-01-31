@@ -200,17 +200,7 @@ export const Overworld: React.FC<OverworldProps> = ({
     };
   }, [activeEncounter, money.balance, money.weeklyAllowance, money.goal.cost]);
 
-    const preview = useMemo(() => {
-        if (!activeEncounter) return null;
-        const buyBalance = Math.max(0, money.balance - activeEncounter.cost);
-        const skipBalance = money.balance;
-        return {
-            buyETA: calculateGoalETAWeeks(buyBalance, money.weeklyAllowance, money.goal.cost),
-            skipETA: calculateGoalETAWeeks(skipBalance, money.weeklyAllowance, money.goal.cost),
-            buyBalance,
-            skipBalance
-        };
-    }, [activeEncounter, money.balance, money.weeklyAllowance, money.goal.cost]);
+
 
     return (
         <div className="flex flex-col min-h-screen bg-[#0b0f19] text-white relative overflow-hidden">

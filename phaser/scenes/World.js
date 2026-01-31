@@ -98,7 +98,7 @@ export class World extends Phaser.Scene {
     this.cameras.main.setBounds(0, 0, this.mapWidthPx, this.mapHeightPx);
     
     // Zoom in for better view of the big map (2x zoom)
-    this.cameras.main.setZoom(0.37);
+    this.cameras.main.setZoom(1);
     
     // Start camera at top-left corner (0, 0)
     // this.cameras.main.scrollX = 0; // Let follow handle it
