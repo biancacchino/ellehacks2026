@@ -1,23 +1,27 @@
-import React, { useState } from 'react';
-import { UserProfile } from '../types';
-import { loadUser, saveUser, createInitialGameState } from '../services/storage';
+import React, { useState } from "react";
+import { UserProfile } from "../types";
+import {
+  loadUser,
+  saveUser,
+  createInitialGameState,
+} from "../services/storage";
 
 interface LoginScreenProps {
   onSuccess: (user: UserProfile, isNew: boolean) => void;
 }
 
 export const LoginScreen: React.FC<LoginScreenProps> = ({ onSuccess }) => {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setError("");
 
     if (!username || !password) {
-        setError('Please enter username and password');
-        return;
+      setError("Please enter username and password");
+      return;
     }
 
     const existingUser = loadUser(username);
@@ -34,27 +38,27 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onSuccess }) => {
   };
 
   const handleRegister = (e: React.MouseEvent) => {
-      e.preventDefault();
-      setError('');
-      if (!username || !password) {
-        setError('Please enter username and password');
-        return;
-      }
-      
-      const existingUser = loadUser(username);
-      if (existingUser) {
-          setError('User already exists');
-          return;
-      }
+    e.preventDefault();
+    setError("");
+    if (!username || !password) {
+      setError("Please enter username and password");
+      return;
+    }
 
-      const newUser: UserProfile = {
-          username,
-          passwordHash: password,
-          characterId: null,
-          gameState: createInitialGameState()
-      };
-      saveUser(newUser);
-      onSuccess(newUser, true);
+    const existingUser = loadUser(username);
+    if (existingUser) {
+      setError("User already exists");
+      return;
+    }
+
+    const newUser: UserProfile = {
+      username,
+      passwordHash: password,
+      characterId: null,
+      gameState: createInitialGameState(),
+    };
+    saveUser(newUser);
+    onSuccess(newUser, true);
   };
 
   return (

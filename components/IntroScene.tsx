@@ -6,7 +6,10 @@ interface IntroSceneProps {
   onFinished: () => void;
 }
 
-export const IntroScene: React.FC<IntroSceneProps> = ({ username, onFinished }) => {
+export const IntroScene: React.FC<IntroSceneProps> = ({
+  username,
+  onFinished,
+}) => {
   const [step, setStep] = useState(0);
 
   const lines = [
