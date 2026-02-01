@@ -8,7 +8,7 @@ import React, {
   useState,
 } from "react";
 import type Phaser from "phaser";
-import { UserProfile, MoneyState, ChoiceEvent } from "../types";
+import { UserProfile, MoneyState, ChoiceEvent, PlayerStats, EncounterCategory } from "../types";
 import { clearSession, saveUser } from "../services/storage";
 import { RetroBox } from "./RetroBox";
 import { PhaserGame } from "./PhaserGame";
@@ -65,12 +65,81 @@ const BUS_STOPS = [
 
 // Market shop items
 const MARKET_SHOP_ITEMS = [
-  { id: "bread", name: "Bread", price: 2.0, emoji: "🍞" },
-  { id: "milk", name: "Milk", price: 1.5, emoji: "🥛" },
-  { id: "fruit", name: "Fruit", price: 2.5, emoji: "🍎" },
-  { id: "eggs", name: "Eggs", price: 1.8, emoji: "🥚" },
-  { id: "medicine", name: "Medicine", price: 5.0, emoji: "💊" },
+  { id: "bread", name: "Bread", price: 2.0, emoji: "🍞", category: 'need' as EncounterCategory },
+  { id: "milk", name: "Milk", price: 1.5, emoji: "🥛", category: 'need' as EncounterCategory },
+  { id: "fruit", name: "Fruit", price: 2.5, emoji: "🍎", category: 'need' as EncounterCategory },
+  { id: "eggs", name: "Eggs", price: 1.8, emoji: "🥚", category: 'need' as EncounterCategory },
+  { id: "medicine", name: "Medicine", price: 5.0, emoji: "💊", category: 'need' as EncounterCategory },
 ];
+
+// Compute player stats from money state - reflects Wealthsimple's tone of insights, not scores
+const computeStats = (money: MoneyState): PlayerStats => {
+  const history = money.history;
+  
+  // Base stats when no history
+  if (history.length === 0) {
+    return {
+      futurePreparedness: 50, // Start neutral
+      financialMindfulness: 50,
+    };
+  }
+
+  // --- Future Preparedness ---
+  // Measures: goal progress, skip ratio (delayed gratification), balance buffer
+  
+  // Goal progress (0-100): How close to achieving the goal
+  const goalProgress = Math.min(100, (money.balance / money.goal.cost) * 100);
+  
+  // Skip ratio (0-100): Higher skips = better delayed gratification
+  const totalChoices = history.length;
+  const skips = history.filter(e => e.choice === 'skip').length;
+  const skipRatio = totalChoices > 0 ? (skips / totalChoices) * 100 : 50;
+  
+  // Buffer score (0-100): Having money above $0 shows emergency mindset
+  // $25+ buffer = 100%, $0 = 0%
+  const bufferScore = Math.min(100, (money.balance / 25) * 100);
+  
+  // Weighted calculation for Future Preparedness
+  const futurePreparedness = Math.round(
+    (goalProgress * 0.5) + (skipRatio * 0.3) + (bufferScore * 0.2)
+  );
+
+  // --- Financial Mindfulness ---
+  // Measures: needs vs wants ratio, balanced decisions, variety of choices
+  
+  // Needs ratio (0-100): Higher when buying needs over wants
+  const purchases = history.filter(e => e.choice === 'buy');
+  const needPurchases = purchases.filter(e => e.category === 'need').length;
+  const wantPurchases = purchases.filter(e => e.category === 'want').length;
+  const socialPurchases = purchases.filter(e => e.category === 'social').length;
+  
+  // Needs are good, social is neutral, pure wants lower the score
+  let needsScore = 50;
+  if (purchases.length > 0) {
+    // Needs = +1, Social = +0.5, Wants = 0
+    const weightedSum = (needPurchases * 1) + (socialPurchases * 0.5) + (wantPurchases * 0);
+    needsScore = Math.min(100, (weightedSum / purchases.length) * 100);
+  }
+  
+  // Balanced decisions (0-100): Not always buying OR always skipping shows thoughtfulness
+  // Perfect balance (50/50) = 100, all one way = lower
+  const buyRatio = totalChoices > 0 ? (purchases.length / totalChoices) : 0.5;
+  const balanceScore = 100 - Math.abs(buyRatio - 0.5) * 200; // 50/50 = 100, 100/0 = 0
+  
+  // Variety score (0-100): Engaging with different encounter types
+  const uniqueEncounters = new Set(history.map(e => e.encounterId)).size;
+  const varietyScore = Math.min(100, (uniqueEncounters / 3) * 100); // 3 encounter types = max
+  
+  // Weighted calculation for Financial Mindfulness
+  const financialMindfulness = Math.round(
+    (needsScore * 0.4) + (balanceScore * 0.4) + (varietyScore * 0.2)
+  );
+
+  return {
+    futurePreparedness: Math.max(0, Math.min(100, futurePreparedness)),
+    financialMindfulness: Math.max(0, Math.min(100, financialMindfulness)),
+  };
+};
 
 interface OverworldProps {
   user: UserProfile;
@@ -96,6 +165,9 @@ export const Overworld: React.FC<OverworldProps> = ({
   );
   const [showGoalPicker, setShowGoalPicker] = useState(false);
   const [isTraveling, setIsTraveling] = useState(false);
+
+  // Compute player stats from money history
+  const playerStats = useMemo(() => computeStats(money), [money]);
 
   useEffect(() => {
     setMoney(ensureMoneyState(user.gameState.money));
@@ -295,6 +367,7 @@ export const Overworld: React.FC<OverworldProps> = ({
       encounterId: activeEncounter.id,
       choice,
       cost: activeEncounter.cost,
+      category: activeEncounter.category,
       deltas: {
         balanceAfter: newBalance,
         notes,
@@ -319,6 +392,14 @@ export const Overworld: React.FC<OverworldProps> = ({
 
   return (
     <div className="flex flex-col min-h-screen bg-[#0b0f19] text-white relative overflow-hidden">
+      {/* Money HUD - positioned in top right */}
+      <MoneyHUD 
+        money={money} 
+        stats={playerStats}
+        onGoalClick={() => setShowGoalPicker(true)}
+        className="absolute top-4 right-4 z-20"
+      />
+
       <div className="flex-1 flex flex-col lg:flex-row items-center justify-center gap-8 p-6 z-10">
         <PhaserGame
           onEncounter={handleEncounter}
