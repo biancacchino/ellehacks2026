@@ -18,13 +18,26 @@ import { MONEY_GOALS } from "../constants";
 
 // Mapping of Door IDs to display names
 const DOOR_MAPPING: Record<string, string> = {
-  DOOR_CORNER_STORE: "Corner Store",
-  DOOR_ARCADE: "Arcade",
-  DOOR_APARTMENT: "Apartment Complex",
+  DOOR_APARTMENT: "Apartment",
+  DOOR_BUS_APARTMENT: "Bus Stop (Apartment)",
+  DOOR_WORK: "Work",
+  DOOR_LIBRARY: "Library",
+  DOOR_NYSE: "NYSE",
+  DOOR_PIZZA: "Pizza Shop",
+  DOOR_BUS_PIZZA: "Bus Stop (Pizza)",
+  DOOR_MOVIES: "Movies",
+  DOOR_BUS_MOVIES: "Bus Stop (Movies)",
   DOOR_MALL: "Mall",
-  DOOR_WORK: "Workplace",
+  DOOR_MARKET: "Market",
   DOOR_COFFEE: "Coffee Shop",
-  DOOR_BUSSTOP: "Bus Stop",
+  DOOR_BUS_COFFEE: "Bus Stop (Coffee)",
+  DOOR_BANK: "Bank",
+  DOOR_BUS_BANK: "Bus Stop (Bank)",
+  DOOR_ARCADE: "Arcade",
+  DOOR_BUS_ARCADE: "Bus Stop (Arcade)",
+  DOOR_BEACH: "Beach",
+  // Fallbacks if needed
+  DOOR_CORNER_STORE: "Corner Store",
 };
 
 interface OverworldProps {
@@ -113,6 +126,13 @@ export const Overworld: React.FC<OverworldProps> = ({
     setMovementLocked(false);
   };
 
+  const notifyDecision = (doorId: string, decision: "yes" | "no") => {
+    const world = gameRef.current?.scene?.getScene("World") as any;
+    if (world && world.handleDoorDecision) {
+      world.handleDoorDecision(doorId, decision);
+    }
+  };
+
   const closeDoor = () => {
     setActiveDoorId(null);
     setMovementLocked(false);
@@ -124,6 +144,9 @@ export const Overworld: React.FC<OverworldProps> = ({
   };
 
   const enterBuilding = () => {
+    if (activeDoorId) {
+      notifyDecision(activeDoorId, "yes");
+    }
     // TODO: Navigate to building Scene or Page
     console.log(`Entering ${DOOR_MAPPING[activeDoorId || ""]}`);
     alert(`Entered ${DOOR_MAPPING[activeDoorId || ""]}! (Placeholder)`);
@@ -145,9 +168,9 @@ export const Overworld: React.FC<OverworldProps> = ({
 
   // Change savings goal
   const changeGoal = (goalId: string) => {
-    const newGoal = MONEY_GOALS.find(g => g.id === goalId);
+    const newGoal = MONEY_GOALS.find((g) => g.id === goalId);
     if (!newGoal) return;
-    
+
     const updatedMoney: MoneyState = {
       ...money,
       goal: {
@@ -217,16 +240,16 @@ export const Overworld: React.FC<OverworldProps> = ({
         />
       </div>
 
-      {activeDoorId && activeDoorId !== "DOOR_BUSSTOP" && (
+      {activeDoorId && !activeDoorId.includes("DOOR_BUS") && (
         <div className="absolute inset-0 z-20 bg-black/70 flex items-center justify-center p-4">
           <RetroBox
-            title={DOOR_MAPPING[activeDoorId]}
-            className="max-w-sm w-full"
+            title={DOOR_MAPPING[activeDoorId] || activeDoorId}
+            className="max-w-sm w-full text-black"
           >
             <div className="space-y-6 text-center">
               <p className="text-sm">
                 Would you like to enter{" "}
-                <strong>{DOOR_MAPPING[activeDoorId]}</strong>?
+                <strong>{DOOR_MAPPING[activeDoorId] || activeDoorId}</strong>?
               </p>
 
               <div className="flex flex-col gap-2">
@@ -237,7 +260,10 @@ export const Overworld: React.FC<OverworldProps> = ({
                   Yes, Enter
                 </button>
                 <button
-                  onClick={closeDoor}
+                  onClick={() => {
+                    if (activeDoorId) notifyDecision(activeDoorId, "no");
+                    closeDoor();
+                  }}
                   className="bg-red-600 hover:bg-red-500 text-white p-3 uppercase text-xs font-bold border-2 border-black transition-colors"
                 >
                   No, Stay Outside
@@ -249,12 +275,12 @@ export const Overworld: React.FC<OverworldProps> = ({
       )}
 
       {/* BUS STOP SPECIAL POPUP */}
-      {activeDoorId === "DOOR_BUSSTOP" && (
+      {activeDoorId && activeDoorId.includes("DOOR_BUS") && (
         <div className="absolute inset-0 z-20 bg-black/80 flex items-center justify-center p-4">
           <div className="relative bg-white text-black p-4 rounded max-w-md w-full border-4 border-yellow-500">
             {/* Title */}
             <h2 className="text-2xl font-bold text-center mb-4 uppercase">
-              Bus Schedule
+              {DOOR_MAPPING[activeDoorId]}
             </h2>
 
             {/* Bus Schedule Image */}
@@ -309,24 +335,27 @@ export const Overworld: React.FC<OverworldProps> = ({
           <div
             className="max-w-md w-full"
             style={{
-              backgroundColor: '#9ccce8',
-              border: '4px solid #5a98b8',
-              borderRadius: '8px',
-              boxShadow: 'inset 2px 2px 0 #b8e0f0, inset -2px -2px 0 #4888a8, 8px 8px 0 rgba(0,0,0,0.3)',
+              backgroundColor: "#9ccce8",
+              border: "4px solid #5a98b8",
+              borderRadius: "8px",
+              boxShadow:
+                "inset 2px 2px 0 #b8e0f0, inset -2px -2px 0 #4888a8, 8px 8px 0 rgba(0,0,0,0.3)",
               fontFamily: '"Press Start 2P", monospace',
             }}
           >
             {/* Title Bar */}
             <div
               className="flex items-center justify-between px-4 py-3"
-              style={{ 
-                backgroundColor: '#5a98b8', 
-                borderRadius: '4px 4px 0 0',
-                borderBottom: '2px solid #4888a8'
+              style={{
+                backgroundColor: "#5a98b8",
+                borderRadius: "4px 4px 0 0",
+                borderBottom: "2px solid #4888a8",
               }}
             >
-              <span className="text-white text-xs font-bold tracking-wide">🎯 Choose Your Goal</span>
-              <button 
+              <span className="text-white text-xs font-bold tracking-wide">
+                🎯 Choose Your Goal
+              </span>
+              <button
                 onClick={() => setShowGoalPicker(false)}
                 className="text-white/70 hover:text-white text-xs"
               >
@@ -337,12 +366,12 @@ export const Overworld: React.FC<OverworldProps> = ({
             {/* Content */}
             <div className="p-4">
               {/* Info message */}
-              <div 
+              <div
                 className="mb-4 p-3 text-center"
                 style={{
-                  backgroundColor: '#fffef8',
-                  border: '3px solid #c8d8e8',
-                  borderRadius: '4px',
+                  backgroundColor: "#fffef8",
+                  border: "3px solid #c8d8e8",
+                  borderRadius: "4px",
                 }}
               >
                 <p className="text-[10px] text-gray-600">
@@ -354,7 +383,10 @@ export const Overworld: React.FC<OverworldProps> = ({
               <div className="space-y-2">
                 {MONEY_GOALS.map((goal) => {
                   const isCurrentGoal = money.goal.id === goal.id;
-                  const progressPercent = Math.min(100, (money.balance / goal.cost) * 100);
+                  const progressPercent = Math.min(
+                    100,
+                    (money.balance / goal.cost) * 100,
+                  );
                   const amountNeeded = Math.max(0, goal.cost - money.balance);
 
                   return (
@@ -362,14 +394,14 @@ export const Overworld: React.FC<OverworldProps> = ({
                       key={goal.id}
                       onClick={() => changeGoal(goal.id)}
                       disabled={isCurrentGoal}
-                      className={`w-full text-left transition-all ${isCurrentGoal ? 'scale-[1.02]' : 'hover:scale-[1.01]'}`}
+                      className={`w-full text-left transition-all ${isCurrentGoal ? "scale-[1.02]" : "hover:scale-[1.01]"}`}
                       style={{
-                        backgroundColor: isCurrentGoal ? '#d8f4d8' : '#fffef8',
-                        border: `3px solid ${isCurrentGoal ? '#4ade80' : '#c8d8e8'}`,
-                        borderRadius: '6px',
-                        boxShadow: isCurrentGoal 
-                          ? 'inset 2px 2px 0 #e8ffe8, inset -2px -2px 0 #a8d8a8'
-                          : 'inset 2px 2px 0 #fff, inset -2px -2px 0 #b8c8d8',
+                        backgroundColor: isCurrentGoal ? "#d8f4d8" : "#fffef8",
+                        border: `3px solid ${isCurrentGoal ? "#4ade80" : "#c8d8e8"}`,
+                        borderRadius: "6px",
+                        boxShadow: isCurrentGoal
+                          ? "inset 2px 2px 0 #e8ffe8, inset -2px -2px 0 #a8d8a8"
+                          : "inset 2px 2px 0 #fff, inset -2px -2px 0 #b8c8d8",
                       }}
                     >
                       <div className="p-3">
@@ -377,33 +409,42 @@ export const Overworld: React.FC<OverworldProps> = ({
                           <span className="text-sm">
                             {goal.emoji} {goal.label}
                           </span>
-                          <span className="text-xs text-gray-600 font-bold">${goal.cost}</span>
+                          <span className="text-xs text-gray-600 font-bold">
+                            ${goal.cost}
+                          </span>
                         </div>
-                        <p className="text-[8px] text-gray-500 mb-2">{goal.description}</p>
-                        
+                        <p className="text-[8px] text-gray-500 mb-2">
+                          {goal.description}
+                        </p>
+
                         {/* Mini progress bar */}
-                        <div 
+                        <div
                           className="h-2 overflow-hidden mb-1"
                           style={{
-                            backgroundColor: '#e8e8e0',
-                            border: '1px solid #c0c0b0',
-                            borderRadius: '2px',
+                            backgroundColor: "#e8e8e0",
+                            border: "1px solid #c0c0b0",
+                            borderRadius: "2px",
                           }}
                         >
                           <div
                             className="h-full"
                             style={{
                               width: `${progressPercent}%`,
-                              backgroundColor: progressPercent >= 100 ? '#4ade80' : '#58a8d0',
+                              backgroundColor:
+                                progressPercent >= 100 ? "#4ade80" : "#58a8d0",
                             }}
                           />
                         </div>
-                        
+
                         <div className="flex justify-between text-[8px] text-gray-500">
                           <span>${money.balance} saved</span>
-                          <span>{amountNeeded === 0 ? '✓ Ready!' : `$${amountNeeded} to go`}</span>
+                          <span>
+                            {amountNeeded === 0
+                              ? "✓ Ready!"
+                              : `$${amountNeeded} to go`}
+                          </span>
                         </div>
-                        
+
                         {isCurrentGoal && (
                           <div className="mt-2 text-[8px] text-green-600 font-bold text-center">
                             ✓ Current Goal
@@ -420,11 +461,11 @@ export const Overworld: React.FC<OverworldProps> = ({
                 onClick={() => setShowGoalPicker(false)}
                 className="w-full mt-4 py-3 text-xs font-bold transition-colors"
                 style={{
-                  backgroundColor: '#4888b0',
-                  color: 'white',
-                  borderRadius: '20px',
-                  border: '3px solid #3070a0',
-                  boxShadow: 'inset 0 2px 0 #68a8d0, inset 0 -2px 0 #285888',
+                  backgroundColor: "#4888b0",
+                  color: "white",
+                  borderRadius: "20px",
+                  border: "3px solid #3070a0",
+                  boxShadow: "inset 0 2px 0 #68a8d0, inset 0 -2px 0 #285888",
                 }}
               >
                 Done

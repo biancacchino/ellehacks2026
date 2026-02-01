@@ -18,6 +18,7 @@ export class World extends Phaser.Scene {
     super({ key: 'World' });
     this.gameState = new GameState();
     this.isMovementLocked = false;
+    this.doorCooldowns = new Map();
   }
 
   preload() {
@@ -98,8 +99,8 @@ export class World extends Phaser.Scene {
     // Set camera bounds to the world size
     this.cameras.main.setBounds(0, 0, this.mapWidthPx, this.mapHeightPx);
     
-    // Zoom in for better view of the big map (2x zoom)
-    this.cameras.main.setZoom(2.00);
+    // Zoom OUT for overview (0.4x zoom)
+    this.cameras.main.setZoom(0.4);
     
     // Start camera at top-left corner (0, 0)
     // this.cameras.main.scrollX = 0; // Let follow handle it
@@ -123,22 +124,22 @@ export class World extends Phaser.Scene {
 
     // Add UI text (fixed to camera)
     this.add.text(10, 10, 'Use WASD to move', {
-      fontSize: '16px',
+      fontSize: '40px', // Zoomed out fix
       fill: '#fff'
     }).setScrollFactor(0); // Fixed to camera
     
     // Debug: show map size
-    this.add.text(10, 30, `Map: ${this.mapWidthPx}x${this.mapHeightPx}px`, {
-      fontSize: '12px',
+    this.add.text(10, 60, `Map: ${this.mapWidthPx}x${this.mapHeightPx}px`, {
+      fontSize: '30px', // Zoomed out fix
       fill: '#888'
     }).setScrollFactor(0);
 
     // Debug: show player position
-    // this.debugText = this.add.text(10, 50, '', {
-    //     fontSize: '16px',
-    //     fill: '#00ff00',
-    //     backgroundColor: '#000000'
-    // }).setScrollFactor(0);
+    this.debugText = this.add.text(10, 100, '', {
+        fontSize: '40px', // Zoomed out fix
+        fill: '#00ff00',
+        backgroundColor: '#000000'
+    }).setScrollFactor(0);
 
     // Track door interaction
     this.currentOverlappingDoor = null;
@@ -171,123 +172,80 @@ export class World extends Phaser.Scene {
     };
 
     // ---------------------------------------------------------
-    // DEFINE YOUR ZONES HERE
-    // Use the coordinates from Tiled or guess & check
+    // ZONES (Buildings = Walls, Doors = Triggers)
     // ---------------------------------------------------------
 
-    // 1. market STORE (Top Left)
-    createBuilding(400, 415, 300, 170, 'COLL_CORNER_STORE'); 
-
-    createDoor(570, 530, 40, 60, 'DOOR_WORK');
-
-
-    // 2. arcade (Top Middle)
-    // Matches encounter at 9,2 (pixels ~288,64)
-    createBuilding(400, 690, 250, 140, 'COLL_ARCADE');
-
-    createDoor(540, 780, 40, 60, 'DOOR_WORK');
+    // --- 1. Apartment Area ---
+    createDoor(312, 218, 40, 60, 'DOOR_APARTMENT');
+    createDoor(515, 295, 15, 30, 'DOOR_BUS_APARTMENT', 0x800080);
+    
+    // Apartment Walls
+    createBuilding(210, 5, 280, 200, 'COLL_WORK');
+    createBuilding(10, 5, 280, 320, 'COLL_WORK');
+    createBuilding(367, 200, 100, 100, 'COLL_WORK');
 
 
-    // 3. mall (Top Right - big building)
-    createBuilding(830, 420, 500, 310, 'COLL_APARTMENT');
-    createDoor(1025, 680, 40, 60, 'DOOR_WORK');
-
-
-      // 6. movie
-    createBuilding(1320, 450, 100, 280, 'COLL_WORK');
-    createDoor(1280, 680, 40, 60, 'DOOR_WORK');
-
-
-    // 4. bank  (Center area)
-    createBuilding(190, 680, 230, 100, 'COLL_COFFEE');
-    createDoor(300, 730, 40, 60, 'DOOR_WORK');
-
-
-    // 5. coffee (Bottom Left - very big)
-    createBuilding(176, 415, 250, 180, 'COLL_MALL_MAIN');
-    createDoor(290, 540, 40, 60, 'DOOR_WORK');
-
-
-    // 6. work / library + bit of a wall st(Bottom Right)
+    // --- 2. Work / Library / NYSE Area (Top Right/Middle) ---
+    createDoor(785, 339, 40, 60, 'DOOR_WORK');
+    createDoor(892, 338, 40, 60, 'DOOR_LIBRARY');
+    createDoor(1105, 340, 40, 60, 'DOOR_NYSE');
+    
+    // Work Walls
     createBuilding(647, 163, 670, 160, 'COLL_WORK');
 
-    createDoor(1100, 280, 40, 60, 'DOOR_WORK');
 
-    createDoor(870, 275, 40, 60, 'DOOR_WORK');
+    // --- 3. Pizza Area ---
+    createDoor(1345, 372, 40, 60, 'DOOR_PIZZA');
+    createDoor(1449, 372, 15, 30, 'DOOR_BUS_PIZZA', 0x800080);
 
-    createDoor(775, 280, 40, 60, 'DOOR_WORK');
-
-
-    // Beach
-    createDoor(0, 910, 4000, 110, 'DOOR_WORK');
-
-
-
-    
-    // 7. BUS STOPS (Purple Zones)
-    // BUS STOP 1: (pizza)
-    createDoor(1450, 300, 15, 70, 'DOOR_BUSSTOP', 0x800080); 
-
-     // BUS STOP : (Movie)
-    createDoor(1430, 710, 15, 30, 'DOOR_BUSSTOP', 0x800080); 
-
-       // BUS STOP : (Mall)
-    createDoor(815, 650, 15, 30, 'DOOR_BUSSTOP', 0x800080); 
-
-
-           // BUS STOP : (Arcade)
-    createDoor(640, 800, 15, 30, 'DOOR_BUSSTOP', 0x800080); 
-
-               // BUS STOP : (Bank)
-    createDoor(180, 780, 15, 30, 'DOOR_BUSSTOP', 0x800080); 
-
-                   // BUS STOP : (Coffe)
-    createDoor(150, 580, 15, 30, 'DOOR_BUSSTOP', 0x800080); 
-
-    // BUS STOP 2: (near apartment  Area)
-    createDoor(490, 270, 15, 30, 'DOOR_BUSSTOP', 0x800080);
-
-
-        // Apartment
-    createBuilding(210, 5, 280, 200, 'COLL_WORK');
-
-    // apratment block
-        createBuilding(10, 5, 280, 320, 'COLL_WORK');
-
-    // appartment block 2
-        createBuilding(367, 200, 100, 100, 'COLL_WORK');
-
-       createDoor(300, 148, 40, 60, 'DOOR_WORK');
-
-        //  left pizza
+    // Pizza Walls
     createBuilding(1300, 190, 40, 170, 'COLL_WORK');
-
-  //  right pizza - NOW BLUE (0x0000ff)
     createBuilding(1260, 225, 170, 120, 'COLL_WORK', 0x0000ff);
 
-     createDoor(1340, 310, 40, 60, 'DOOR_WORK');
+
+    // --- 4. Mall / Movies Area ---
+    createDoor(1049, 738, 40, 60, 'DOOR_MALL');
+    createDoor(1309, 743, 40, 60, 'DOOR_MOVIES');
+    createDoor(1435, 738, 15, 30, 'DOOR_BUS_MOVIES', 0x800080);
+
+    // Mall/Movie Walls
+    createBuilding(830, 420, 500, 310, 'COLL_APARTMENT'); // Mall building
+    createBuilding(1320, 450, 100, 280, 'COLL_WORK'); // Movie building
 
 
-        //  top grass - NOW BLUE (0x0000ff)
-    createBuilding(0, 0, 10000, 75, 'COLL_WORK', 0x0000ff);
+    // --- 5. Market / Arcade Area ---
+    createDoor(593, 590, 40, 60, 'DOOR_MARKET');
+    createDoor(562, 827, 40, 60, 'DOOR_ARCADE');
+    createDoor(665, 835, 15, 30, 'DOOR_BUS_ARCADE', 0x800080);
 
-        //  right grass - NOW BLUE (0x0000ff)
-    createBuilding(1500, 0, 80, 370, 'COLL_WORK', 0x0000ff);
+    // Market/Arcade Walls
+    createBuilding(400, 415, 300, 170, 'COLL_CORNER_STORE'); // Market building
+    createBuilding(400, 690, 250, 140, 'COLL_ARCADE'); // Arcade building
 
-      //  small near pizza block  1- NOW BLUE (0x0000ff)
-    createBuilding(1435, 330, 55, 20, 'COLL_WORK');
 
-      //  left grass  1- NOW BLUE (0x0000ff)
-    createBuilding(0, 0, 70, 360, 'COLL_WORK', 0x0000ff);
+    // --- 6. Coffee / Bank Area ---
+    createDoor(303, 600, 40, 60, 'DOOR_COFFEE');
+    createDoor(147, 615, 15, 30, 'DOOR_BUS_COFFEE', 0x800080);
+    createDoor(290, 796, 40, 60, 'DOOR_BANK');
+    createDoor(182, 814, 15, 30, 'DOOR_BUS_BANK', 0x800080);
 
-      //  left grass thin - NOW BLUE (0x0000ff)
-    createBuilding(0, 0, 20, 900, 'COLL_WORK');
+    // Coffee/Bank Walls
+    createBuilding(176, 415, 250, 180, 'COLL_MALL_MAIN'); // Coffee building
+    createBuilding(190, 680, 230, 100, 'COLL_COFFEE'); // Bank building
 
-      //  left grass bottom  1- NOW BLUE (0x0000ff)
-    createBuilding(0, 680, 80, 240, 'COLL_WORK', 0x0000ff);
 
-    //  left grass bottom smaller 1- NOW BLUE (0x0000ff)
-    createBuilding(90, 860, 140, 30, 'COLL_WORK');
+    // --- 7. Beach ---
+    createDoor(0, 900, 3000, 100, 'DOOR_BEACH');
+
+    
+    // --- 8. Borders (Grass/Limits) ---
+    createBuilding(0, 0, 10000, 75, 'COLL_WORK', 0x0000ff); // Top
+    createBuilding(1500, 0, 80, 370, 'COLL_WORK', 0x0000ff); // Right side
+    createBuilding(1435, 330, 55, 20, 'COLL_WORK'); // Small right block
+    createBuilding(0, 0, 70, 360, 'COLL_WORK', 0x0000ff); // Left side
+    createBuilding(0, 0, 20, 900, 'COLL_WORK'); // Thin left
+    createBuilding(0, 680, 80, 240, 'COLL_WORK', 0x0000ff); // Left bottom
+    createBuilding(90, 860, 140, 30, 'COLL_WORK'); // Left bottom small
     
 
 
@@ -316,10 +274,12 @@ export class World extends Phaser.Scene {
 
   handleDoorTrigger(doorName) {
       const now = this.time.now;
-      // Increased cooldown to 3000ms (3 seconds) to prevent re-triggering same popup immediately
-      if (this.lastTriggerTime && now - this.lastTriggerTime < 3000) {
+      
+      // Check specific door cooldown
+      if (this.doorCooldowns.has(doorName) && this.doorCooldowns.get(doorName) > now) {
           return;
       }
+      
       this.lastTriggerTime = now;
 
       // Prevent spamming the trigger (debounce could go here)
@@ -380,9 +340,6 @@ export class World extends Phaser.Scene {
           this.player.sprite.y += 30;
           this.player.sprite.body.setVelocity(0, 0);
       }
-      
-      // Reset trigger timer to allow re-entry
-      this.lastTriggerTime = 0;
   }
 
 
@@ -452,9 +409,9 @@ export class World extends Phaser.Scene {
     }
 
     // Update debug text with player position
-    // if (this.debugText && this.player && this.player.sprite) {
-    //     this.debugText.setText(`x: ${Math.round(this.player.sprite.x)}, y: ${Math.round(this.player.sprite.y)}`);
-    // }
+    if (this.debugText && this.player && this.player.sprite) {
+        this.debugText.setText(`x: ${Math.round(this.player.sprite.x)}, y: ${Math.round(this.player.sprite.y)}`);
+    }
 
     // Reset overlap if player left the zone
     if (this.currentOverlappingDoor && (this.time.now - this.lastOverlapFrameTime > 50)) {
@@ -506,6 +463,19 @@ export class World extends Phaser.Scene {
     if (markerEntry?.marker) {
       markerEntry.marker.setFillStyle(0x1f2937, 0.4);
       markerEntry.marker.setStrokeStyle(2, 0x0f172a, 0.6);
+    }
+  }
+
+  handleDoorDecision(doorName, decision) {
+    const now = this.time.now;
+    if (decision === 'yes') {
+        // If yes, long cooldown (15 seconds)
+        this.doorCooldowns.set(doorName, now + 15000);
+        console.log(`Door ${doorName} accepted. Cooldown: 15s`);
+    } else {
+        // If no, short cooldown (3 seconds)
+        this.doorCooldowns.set(doorName, now + 3000);
+        console.log(`Door ${doorName} declined. Cooldown: 3s`);
     }
   }
 }
