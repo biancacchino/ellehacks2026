@@ -19,25 +19,17 @@ import { ShopPopup } from "./ShopPopup";
 import { BankPopup } from "./BankPopup";
 import { NysePopup } from "./NysePopup";
 import { CoffeePopup } from "./CoffeePopup";
-import { MallPopup } from "./MallPopup";
-import { MoviesPopup } from "./MoviesPopup";
-import { ArcadePopup } from "./ArcadePopup";
-import { PizzaPopup } from "./PizzaPopup";
-import { 
-  COFFEE_SHOP_ITEMS, 
-  MALL_SHOP_ITEMS, 
-  MOVIES_SHOP_ITEMS, 
-  ARCADE_SHOP_ITEMS, 
-  PIZZA_SHOP_ITEMS 
-} from "../constants";
-import { 
-  BusIcon, 
-  MovieIcon, 
-  PizzaIcon, 
-  HomeIcon, 
-  CoffeeIcon, 
-  BankIcon, 
-  ArcadeIcon, 
+import { LibraryPopup } from "./LibraryPopup";
+import { ApartmentRestPopup } from "./ApartmentRestPopup";
+import { COFFEE_SHOP_ITEMS } from "../constants";
+import {
+  BusIcon,
+  MovieIcon,
+  PizzaIcon,
+  HomeIcon,
+  CoffeeIcon,
+  BankIcon,
+  ArcadeIcon,
   MallIcon,
   BreadIcon,
   MilkIcon,
@@ -247,6 +239,8 @@ export const Overworld: React.FC<OverworldProps> = ({
   const [activeDoorId, setActiveDoorId] = useState<string | null>(null);
   const [showShop, setShowShop] = useState(false);
   const [showBank, setShowBank] = useState(false);
+  const [showLibraryMenu, setShowLibraryMenu] = useState(false);
+  const [showApartmentRest, setShowApartmentRest] = useState(false);
   const [showNyse, setShowNyse] = useState(false);
   const [modalStep, setModalStep] = useState<"choice" | "preview" | "result">(
     "choice",
@@ -338,6 +332,7 @@ export const Overworld: React.FC<OverworldProps> = ({
     setActiveDoorId(null);
     setShowShop(false);
     setShowLibraryMenu(false);
+    setShowApartmentRest(false);
     setMovementLocked(false);
 
     if (!skipPushback) {
@@ -356,6 +351,11 @@ export const Overworld: React.FC<OverworldProps> = ({
 
     if (activeDoorId === "DOOR_LIBRARY") {
       setShowLibraryMenu(true);
+      return;
+    }
+
+    if (activeDoorId === "DOOR_APARTMENT") {
+      setShowApartmentRest(true);
       return;
     }
 
@@ -679,7 +679,8 @@ export const Overworld: React.FC<OverworldProps> = ({
 
       {activeDoorId &&
         !activeDoorId.includes("DOOR_BUS") &&
-        !showLibraryMenu && (
+        !showLibraryMenu &&
+        !showApartmentRest && (
           <div className="absolute inset-0 z-20 bg-black/70 flex items-center justify-center p-4">
             <RetroBox
               title={DOOR_MAPPING[activeDoorId] || activeDoorId}
@@ -715,7 +716,8 @@ export const Overworld: React.FC<OverworldProps> = ({
       {activeDoorId &&
         !activeDoorId.includes("DOOR_BUS") &&
         !showShop &&
-        !showLibraryMenu && (
+        !showLibraryMenu &&
+        !showApartmentRest && (
           <div className="absolute inset-0 z-20 bg-black/70 flex items-center justify-center p-4">
             <RetroBox
               title={DOOR_MAPPING[activeDoorId] || activeDoorId}
@@ -938,6 +940,16 @@ export const Overworld: React.FC<OverworldProps> = ({
           bankBalance={money.bankBalance}
           onPurchase={handleShopPurchase}
           onCancel={closeDoor}
+        />
+      )}
+
+      {showApartmentRest && activeDoorId === "DOOR_APARTMENT" && (
+        <ApartmentRestPopup
+          money={money}
+          onClose={() => {
+            setShowApartmentRest(false);
+            closeDoor();
+          }}
         />
       )}
 
