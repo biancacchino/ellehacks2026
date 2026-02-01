@@ -107,8 +107,12 @@ const computeStats = (money: MoneyState): PlayerStats => {
   // --- Future Preparedness ---
   // Measures: goal progress, skip ratio (delayed gratification), balance buffer
   
-  // Goal progress (0-100): How close to achieving the goal
-  const goalProgress = Math.min(100, (money.balance / money.goal.cost) * 100);
+  // Total balance for calculations
+  const totalBalance = money.cash + money.bank + money.tfsa;
+  
+  // Goal progress (0-100): How close to achieving the goal (based on safe savings)
+  const safeSavings = money.bank + money.tfsa;
+  const goalProgress = Math.min(100, (safeSavings / money.goal.cost) * 100);
   
   // Skip ratio (0-100): Higher skips = better delayed gratification
   const totalChoices = history.length;
@@ -117,7 +121,7 @@ const computeStats = (money: MoneyState): PlayerStats => {
   
   // Buffer score (0-100): Having money above $0 shows emergency mindset
   // $25+ buffer = 100%, $0 = 0%
-  const bufferScore = Math.min(100, (money.balance / 25) * 100);
+  const bufferScore = Math.min(100, (totalBalance / 25) * 100);
   
   // Weighted calculation for Future Preparedness
   const futurePreparedness = Math.round(
@@ -276,32 +280,53 @@ export const Overworld: React.FC<OverworldProps> = ({
     }
   };
 
-  const enterBuilding = () => {
-    if (activeDoorId) {
-      notifyDecision(activeDoorId, "yes");
-    }
-    // For market door, show shop popup only after confirmation
-    if (activeDoorId === 'DOOR_MARKET') {
-      setShowShop(true);
-      return;
-    }
-    // For coffee shop door, show coffee popup only after confirmation
-    if (activeDoorId === 'DOOR_COFFEE') {
-      setShowShop(true);
+const enterBuilding = () => {
+  if (activeDoorId) {
+    notifyDecision(activeDoorId, "yes");
+  }
+  
+  // Handle Work building - earn random $15-$20 with cooldown
+  if (activeDoorId === 'DOOR_WORK') {
+    const now = Date.now();
+    
+    // Check if still on cooldown
+    if (now < workCooldownEnd) {
+      const secondsLeft = Math.ceil((workCooldownEnd - now) / 1000);
+      alert(`You need to rest! Come back in ${secondsLeft} seconds.`);
+      closeDoor();
       return;
     }
     
-    // Check if it's a shop door
-    if (activeDoorId === 'DOOR_MARKET' || activeDoorId === 'DOOR_MALL') {
-        setShowShop(true);
-        // Do not close door yet, shop is an overlay
-        return;
-    }
-    // TODO: Navigate to building Scene or Page
-    console.log(`Entering ${DOOR_MAPPING[activeDoorId || ""]}`);
-    alert(`Entered ${DOOR_MAPPING[activeDoorId || ""]}! (Placeholder)`);
-    closeDoor();
-  };
+    // Earn money and start 20 second cooldown
+    const earned = Math.floor(Math.random() * 6) + 15; // 15-20 inclusive
+    earnMoney(earned, 'work');
+    setWorkEarnings(earned);
+    setWorkCooldownEnd(now + 20000);
+    return;
+  }
+  
+  // For market door, show shop popup only after confirmation
+  if (activeDoorId === 'DOOR_MARKET') {
+    setShowShop(true);
+    return;
+  }
+  // For coffee shop door, show coffee popup only after confirmation
+  if (activeDoorId === 'DOOR_COFFEE') {
+    setShowShop(true);
+    return;
+  }
+  
+  // Check if it's a shop door
+  if (activeDoorId === 'DOOR_MARKET' || activeDoorId === 'DOOR_MALL') {
+    setShowShop(true);
+    return;
+  }
+  
+  // TODO: Navigate to building Scene or Page
+  console.log(`Entering ${DOOR_MAPPING[activeDoorId || ""]}`);
+  alert(`Entered ${DOOR_MAPPING[activeDoorId || ""]}! (Placeholder)`);
+  closeDoor();
+};
 
   const handleBusTravel = (destination: (typeof BUS_STOPS)[0]) => {
     if (!activeDoorId) return;
@@ -350,11 +375,12 @@ export const Overworld: React.FC<OverworldProps> = ({
     price: number,
   ) => {
     // Round to 2 decimal places to avoid floating point issues
-    const newBalance = Math.round(Math.max(0, money.balance - price) * 100) / 100;
+    // Deduct from cash (money on hand)
+    const newCash = Math.round(Math.max(0, money.cash - price) * 100) / 100;
     
     const updatedMoney: MoneyState = {
       ...money,
-      balance: newBalance,
+      cash: newCash,
     };
     saveMoneyState(updatedMoney);
 
@@ -387,24 +413,50 @@ export const Overworld: React.FC<OverworldProps> = ({
     setShowGoalPicker(false);
   };
 
-  // Add money from working at encounters
+  // Add money from working - goes to cash (unsafe)
   const earnMoney = (amount: number, source: string) => {
-    const newBalance = money.balance + amount;
+    const newCash = Math.round((money.cash + amount) * 100) / 100;
     const updatedMoney: MoneyState = {
       ...money,
-      balance: newBalance,
+      cash: newCash,
     };
     saveMoneyState(updatedMoney);
-    return newBalance;
+    return newCash;
+  };
+
+  // Deposit cash to bank (for teammate's bank feature)
+  const depositToBank = (amount: number) => {
+    const depositAmount = Math.min(amount, money.cash);
+    if (depositAmount <= 0) return;
+    
+    const updatedMoney: MoneyState = {
+      ...money,
+      cash: Math.round((money.cash - depositAmount) * 100) / 100,
+      bank: Math.round((money.bank + depositAmount) * 100) / 100,
+    };
+    saveMoneyState(updatedMoney);
+  };
+
+  // Invest from bank to TFSA (for future NYSE feature)
+  const investInTFSA = (amount: number) => {
+    const investAmount = Math.min(amount, money.bank);
+    if (investAmount <= 0) return;
+    
+    const updatedMoney: MoneyState = {
+      ...money,
+      bank: Math.round((money.bank - investAmount) * 100) / 100,
+      tfsa: Math.round((money.tfsa + investAmount) * 100) / 100,
+    };
+    saveMoneyState(updatedMoney);
   };
 
   const applyChoice = (choice: "buy" | "skip") => {
     if (!activeEncounter) return;
 
-    const newBalance =
+    const newCash =
       choice === "buy"
-        ? Math.max(0, money.balance - activeEncounter.cost)
-        : money.balance;
+        ? Math.max(0, money.cash - activeEncounter.cost)
+        : money.cash;
     const notes = activeEncounter.notes[choice];
 
     const event: ChoiceEvent = {
@@ -414,14 +466,14 @@ export const Overworld: React.FC<OverworldProps> = ({
       cost: activeEncounter.cost,
       category: activeEncounter.category,
       deltas: {
-        balanceAfter: newBalance,
+        balanceAfter: newCash,
         notes,
       },
     };
 
     const updatedMoney: MoneyState = {
       ...money,
-      balance: newBalance,
+      cash: newCash,
       history: [...money.history, event],
     };
 
@@ -632,7 +684,7 @@ export const Overworld: React.FC<OverworldProps> = ({
         <ShopPopup
           title={activeEncounter.title}
           items={activeEncounter.shopItems}
-          userBalance={money.balance}
+          userBalance={money.cash}
           onPurchase={handleShopPurchase}
           onCancel={closeEncounter}
         />
@@ -643,7 +695,7 @@ export const Overworld: React.FC<OverworldProps> = ({
         <ShopPopup
           title="Market"
           items={MARKET_SHOP_ITEMS}
-          userBalance={money.balance}
+          userBalance={money.cash}
           onPurchase={handleShopPurchase}
           onCancel={closeDoor}
         />
@@ -654,7 +706,7 @@ export const Overworld: React.FC<OverworldProps> = ({
         <CoffeePopup
           title="Coffee Shop"
           items={COFFEE_SHOP_ITEMS}
-          userBalance={money.balance}
+          userBalance={money.cash}
           onPurchase={handleShopPurchase}
           onCancel={closeDoor}
           imagePath={"/assets/ui/coffee-bar.png"}
@@ -715,11 +767,13 @@ export const Overworld: React.FC<OverworldProps> = ({
               <div className="space-y-2">
                 {MONEY_GOALS.map((goal) => {
                   const isCurrentGoal = money.goal.id === goal.id;
+                  // Goal progress based on safe savings (bank + tfsa)
+                  const safeSavings = money.bank + money.tfsa;
                   const progressPercent = Math.min(
                     100,
-                    (money.balance / goal.cost) * 100,
+                    (safeSavings / goal.cost) * 100,
                   );
-                  const amountNeeded = Math.max(0, goal.cost - money.balance);
+                  const amountNeeded = Math.max(0, goal.cost - safeSavings);
 
                   return (
                     <button
@@ -769,11 +823,11 @@ export const Overworld: React.FC<OverworldProps> = ({
                         </div>
 
                         <div className="flex justify-between text-[8px] text-gray-500">
-                          <span>${money.balance} saved</span>
+                          <span>${safeSavings.toFixed(0)} saved</span>
                           <span>
                             {amountNeeded === 0
                               ? "✓ Ready!"
-                              : `$${amountNeeded} to go`}
+                              : `$${amountNeeded.toFixed(0)} to go`}
                           </span>
                         </div>
 
@@ -835,7 +889,10 @@ export const Overworld: React.FC<OverworldProps> = ({
               <p className="text-sm text-gray-700">Great job! You earned:</p>
               <p className="text-2xl font-bold text-green-600">${workEarnings}</p>
               <p className="text-[10px] text-gray-500">
-                New balance: ${money.balance.toFixed(2)}
+                New cash balance: ${money.cash.toFixed(2)}
+              </p>
+              <p className="text-[10px] text-amber-600">
+                💡 Deposit at the bank to keep it safe!
               </p>
               <p className="text-[10px] text-gray-400">
                 Come back in 20 seconds to work again!
@@ -865,10 +922,20 @@ export const Overworld: React.FC<OverworldProps> = ({
 
 const ensureMoneyState = (moneyState?: MoneyState): MoneyState => {
   if (moneyState) {
-    return moneyState;
+    // Handle migration from old balance-only format
+    const oldBalance = (moneyState as any).balance;
+    return {
+      cash: moneyState.cash ?? oldBalance ?? 25,
+      bank: moneyState.bank ?? 0,
+      tfsa: moneyState.tfsa ?? 0,
+      goal: moneyState.goal,
+      history: moneyState.history,
+    };
   }
   return {
-    balance: 100,
+    cash: 25,
+    bank: 0,
+    tfsa: 0,
     goal: {
       id: "headphones",
       label: "Headphones",
