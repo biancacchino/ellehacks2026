@@ -303,18 +303,14 @@ export class World extends Phaser.Scene {
     if (this.currentOverlappingDoor !== doorName) {
         this.currentOverlappingDoor = doorName;
         this.overlapEnterTime = now;
-        this.hasTriggeredForCurrentOverlap = false; // Reset trigger flag for new zone entry
         console.log(`Entered ${doorName}. Waiting 1s...`);
         return; 
     }
 
     // 2. Waiting (debounce already handled inside handleDoorTrigger or we can add extra check)
-    // Check if 1 second has passed AND we haven't triggered yet for this specific entry
-    if (!this.hasTriggeredForCurrentOverlap && now - this.overlapEnterTime >= 1000) {
-        const triggered = this.handleDoorTrigger(doorName);
-        if (triggered) {
-            this.hasTriggeredForCurrentOverlap = true;
-        }
+    // Check if 1 second has passed
+    if (now - this.overlapEnterTime >= 1000) {
+        this.handleDoorTrigger(doorName);
     }
   }
 
@@ -322,7 +318,7 @@ export class World extends Phaser.Scene {
       const now = this.time.now;
       // Increased cooldown to 3000ms (3 seconds) to prevent re-triggering same popup immediately
       if (this.lastTriggerTime && now - this.lastTriggerTime < 3000) {
-          return false;
+          return;
       }
       this.lastTriggerTime = now;
 
@@ -347,7 +343,23 @@ export class World extends Phaser.Scene {
           callbacks.onEncounter(doorName);
       }
       
-      return true;
+      // Example routing (internal game logic if needed)
+      switch(doorName) {
+          case 'DOOR_CORNER_STORE':
+              // Access corner store UI
+              break;
+          case 'DOOR_ARCADE':
+              // Start arcade mini-game
+              break;
+          case 'DOOR_APARTMENT':
+              // Go home / sleep
+              break;
+          case 'DOOR_MALL':
+              // Open shopping menu
+              break;
+          default:
+              break;
+      }
   }
 
   // Push player out of the door zone slightly
@@ -369,10 +381,8 @@ export class World extends Phaser.Scene {
           this.player.sprite.body.setVelocity(0, 0);
       }
       
-      // Do NOT reset trigger timer to 0 here. 
-      // Keeping the timestamp ensures the 3s cooldown is respected 
-      // even after the user cancels/closes the popup.
-      // this.lastTriggerTime = 0; 
+      // Reset trigger timer to allow re-entry
+      this.lastTriggerTime = 0;
   }
 
 
