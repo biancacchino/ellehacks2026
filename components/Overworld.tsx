@@ -8,14 +8,8 @@ import React, {
   useState,
 } from "react";
 import type Phaser from "phaser";
-import {
-  UserProfile,
-  MoneyState,
-  ChoiceEvent,
-  PlayerStats,
-  EncounterCategory,
-} from "../types";
-import { clearSession, saveUser } from "../services/storage";
+import { UserProfile, MoneyState, ChoiceEvent, PlayerStats, EncounterCategory, InvestmentType } from "../types";
+import { clearSession, saveUser, simulateMarketStep } from "../services/storage";
 import { RetroBox } from "./RetroBox";
 import { PhaserGame } from "./PhaserGame";
 import { ENCOUNTERS } from "../phaser/data/encounters";
@@ -23,6 +17,7 @@ import { MoneyHUD } from "./MoneyHUD";
 import { MONEY_GOALS } from "../constants";
 import { ShopPopup } from "./ShopPopup";
 import { BankPopup } from "./BankPopup";
+import { NysePopup } from "./NysePopup";
 import { CoffeePopup } from "./CoffeePopup";
 import { LibraryPopup } from "./LibraryPopup";
 import { ApartmentRestPopup } from "./ApartmentRestPopup";
@@ -58,7 +53,7 @@ const DOOR_MAPPING: Record<string, string> = {
   DOOR_MARKET: "Market",
   DOOR_COFFEE: "Coffee Shop",
   DOOR_BUS_COFFEE: "Bus Stop (Coffee)",
-  DOOR_BANK: "Bank",
+  DOOR_BANK: "BANK",
   DOOR_BUS_BANK: "Bus Stop (Bank)",
   DOOR_ARCADE: "Arcade",
   DOOR_BUS_ARCADE: "Bus Stop (Arcade)",
@@ -92,7 +87,7 @@ const BUS_STOPS = [
     x: 147,
     y: 665,
   },
-  { id: "DOOR_BUS_BANK", name: "Bank", icon: BankIcon, x: 182, y: 864 },
+  { id: "DOOR_BUS_BANK", name: "BANK", icon: BankIcon, x: 182, y: 864 },
   { id: "DOOR_BUS_ARCADE", name: "Arcade", icon: ArcadeIcon, x: 665, y: 885 },
   { id: "DOOR_BUS_MALL", name: "Mall", icon: MallIcon, x: 793, y: 739 },
 ];
@@ -173,23 +168,39 @@ const computeStats = (money: MoneyState): PlayerStats => {
   );
 
   // --- Financial Mindfulness ---
-  // Measures: needs vs wants ratio, balanced decisions, variety of choices
-
-  // Needs ratio (0-100): Higher when buying needs over wants
-  const purchases = history.filter((e) => e.choice === "buy");
-  const needPurchases = purchases.filter((e) => e.category === "need").length;
-  const wantPurchases = purchases.filter((e) => e.category === "want").length;
-  const socialPurchases = purchases.filter(
-    (e) => e.category === "social",
-  ).length;
-
-  // Needs are good, social is neutral, pure wants lower the score
+  // Measures: needs vs wants ratio (weighted by cost), balanced decisions, variety of choices
+  
+  const purchases = history.filter(e => e.choice === 'buy');
+  
+  // Cost-weighted needs score: larger purchases have more impact
   let needsScore = 50;
   if (purchases.length > 0) {
-    // Needs = +1, Social = +0.5, Wants = 0
-    const weightedSum =
-      needPurchases * 1 + socialPurchases * 0.5 + wantPurchases * 0;
-    needsScore = Math.min(100, (weightedSum / purchases.length) * 100);
+    const totalSpent = purchases.reduce((sum, e) => sum + (e.cost || 0), 0);
+    
+    if (totalSpent > 0) {
+      // Weight each category by its cost contribution
+      // Needs = +1.0, Social = random 0.3-0.5 (slightly negative to neutral), Wants = 0
+      let weightedSum = 0;
+      purchases.forEach(e => {
+        const cost = e.cost || 0;
+        let categoryWeight = 0;
+        
+        if (e.category === 'need') {
+          categoryWeight = 1.0;
+        } else if (e.category === 'social') {
+          // Random between slightly negative (0.3) and neutral (0.5)
+          categoryWeight = Math.random() < 0.5 ? 0.3 : 0.5;
+        } else {
+          // 'want' category
+          categoryWeight = 0;
+        }
+        
+        // Weight by cost relative to total spending
+        weightedSum += categoryWeight * (cost / totalSpent);
+      });
+      
+      needsScore = Math.min(100, weightedSum * 100);
+    }
   }
 
   // Balanced decisions (0-100): Not always buying OR always skipping shows thoughtfulness
@@ -230,6 +241,7 @@ export const Overworld: React.FC<OverworldProps> = ({
   const [showBank, setShowBank] = useState(false);
   const [showLibraryMenu, setShowLibraryMenu] = useState(false);
   const [showApartmentRest, setShowApartmentRest] = useState(false);
+  const [showNyse, setShowNyse] = useState(false);
   const [modalStep, setModalStep] = useState<"choice" | "preview" | "result">(
     "choice",
   );
@@ -379,15 +391,17 @@ export const Overworld: React.FC<OverworldProps> = ({
       return;
     }
 
+    // Handle NYSE
+    if (activeDoorId === 'DOOR_NYSE') {
+        setShowNyse(true);
+        return;
+    }
+
     // Handle Shops
-    if (
-      activeDoorId === "DOOR_MARKET" ||
-      activeDoorId === "DOOR_MALL" ||
-      activeDoorId === "DOOR_COFFEE"
-    ) {
-      setShowShop(true);
-      // Do not close door yet, shop is an overlay
-      return;
+    if (activeDoorId === 'DOOR_MARKET' || activeDoorId === 'DOOR_MALL' || activeDoorId === 'DOOR_COFFEE' || activeDoorId === 'DOOR_MOVIES' || activeDoorId === 'DOOR_ARCADE' || activeDoorId === 'DOOR_PIZZA') {
+        setShowShop(true);
+        // Do not close door yet, shop is an overlay
+        return;
     }
 
     // TODO: Navigate to building Scene or Page
@@ -437,19 +451,39 @@ export const Overworld: React.FC<OverworldProps> = ({
     saveUser(updatedUser);
   };
 
+  const handleMarketTick = useCallback(() => {
+    if (!money.portfolio) return;
+    const nextMoney = simulateMarketStep(money);
+    saveMoneyState(nextMoney);
+  }, [money, user]); // Added user dependency as saveMoneyState uses it
+
   const handleShopPurchase = (
     itemId: string,
     itemName: string,
     price: number,
+    category: EncounterCategory = 'want',
   ) => {
     // Round to 2 decimal places to avoid floating point issues
     // Deduct from balance (money on hand)
-    const newBalance =
-      Math.round(Math.max(0, money.balance - price) * 100) / 100;
-
+    const newBalance = Math.round(Math.max(0, money.balance - price) * 100) / 100;
+    
+    // Create a choice event to record in history (affects stats)
+    const event: ChoiceEvent = {
+      id: createEventId(),
+      encounterId: activeDoorId || activeEncounterId || `shop_${itemId}`,
+      choice: 'buy',
+      cost: price,
+      category: category,
+      deltas: {
+        balanceAfter: newBalance,
+        notes: [`Purchased ${itemName} for $${price.toFixed(2)}`],
+      },
+    };
+    
     const updatedMoney: MoneyState = {
       ...money,
       balance: newBalance,
+      history: [...money.history, event],
     };
     saveMoneyState(updatedMoney);
 
@@ -556,6 +590,34 @@ export const Overworld: React.FC<OverworldProps> = ({
           balanceAfter: newBankBalance,
         },
       ],
+    };
+    saveMoneyState(updatedMoney);
+  };
+
+  const handleInvest = (type: InvestmentType, amount: number) => {
+    if (amount > money.balance) return;
+    
+    // Create new portfolio object
+    const currentAmount = money.portfolio?.[type] || 0;
+    const newPortfolio = {
+      ...(money.portfolio || {
+        etf: 0,
+        stocks: 0,
+        bonds: 0,
+        crypto: 0,
+        minerals: 0,
+        real_estate: 0,
+        options: 0
+      }),
+      [type]: currentAmount + amount
+    };
+
+    const updatedMoney: MoneyState = {
+      ...money,
+      balance: Math.round((money.balance - amount) * 100) / 100,
+      portfolio: newPortfolio,
+      // We could add to history here but bankHistory is separate. 
+      // Maybe we need an investmentHistory? For now, we just track balance.
     };
     saveMoneyState(updatedMoney);
   };
@@ -695,7 +757,7 @@ export const Overworld: React.FC<OverworldProps> = ({
           className={`absolute inset-0 z-20 flex items-center justify-center p-4 ${isTraveling ? "bg-black" : "bg-black/60"}`}
         >
           {/* New Bubbly Blue Container */}
-          <div className="bg-[#60a5fa] border-4 border-white rounded-[2rem] shadow-[0_0_0_4px_#3b82f6,0_10px_20px_rgba(0,0,0,0.5)] w-full max-w-4xl overflow-hidden flex flex-col md:flex-row relative animate-bounce-in min-h-[500px]">
+          <div className="bg-[#60a5fa] border-4 border-white rounded-[2rem] shadow-[0_0_0_4px_#3b82f6,0_10px_20px_rgba(0,0,0,0.5)] w-full max-w-2xl overflow-hidden flex flex-col md:flex-row relative animate-bounce-in min-h-[400px]">
             {/* Left Side - Big Bus Icon */}
             <div
               className={`bg-[#3b82f6] md:w-1/3 p-6 flex flex-col items-center justify-center relative overflow-hidden transition-all duration-500 ${isTraveling ? "w-full md:w-full" : ""}`}
@@ -802,6 +864,7 @@ export const Overworld: React.FC<OverworldProps> = ({
           title={activeEncounter.title}
           items={activeEncounter.shopItems}
           userBalance={money.balance}
+          bankBalance={money.bankBalance}
           onPurchase={handleShopPurchase}
           onCancel={closeEncounter}
         />
@@ -813,6 +876,7 @@ export const Overworld: React.FC<OverworldProps> = ({
           title="Market"
           items={MARKET_SHOP_ITEMS}
           userBalance={money.balance}
+          bankBalance={money.bankBalance}
           onPurchase={handleShopPurchase}
           onCancel={closeDoor}
         />
@@ -824,18 +888,58 @@ export const Overworld: React.FC<OverworldProps> = ({
           title="Coffee Shop"
           items={COFFEE_SHOP_ITEMS}
           userBalance={money.balance}
+          bankBalance={money.bankBalance}
           onPurchase={handleShopPurchase}
           onCancel={closeDoor}
           imagePath={"/assets/ui/coffee-bar.png"}
         />
       )}
 
-      {showLibraryMenu && activeDoorId === "DOOR_LIBRARY" && (
-        <LibraryPopup
-          onClose={() => {
-            setShowLibraryMenu(false);
-            closeDoor();
-          }}
+      {/* MALL POPUP FOR MALL DOOR */}
+      {showShop && activeDoorId === "DOOR_MALL" && (
+        <MallPopup
+          title="Mall"
+          items={MALL_SHOP_ITEMS}
+          userBalance={money.balance}
+          bankBalance={money.bankBalance}
+          onPurchase={handleShopPurchase}
+          onCancel={closeDoor}
+        />
+      )}
+
+      {/* MOVIES POPUP FOR MOVIES DOOR */}
+      {showShop && activeDoorId === "DOOR_MOVIES" && (
+        <MoviesPopup
+          title="Movies"
+          items={MOVIES_SHOP_ITEMS}
+          userBalance={money.balance}
+          bankBalance={money.bankBalance}
+          onPurchase={handleShopPurchase}
+          onCancel={closeDoor}
+        />
+      )}
+
+      {/* ARCADE POPUP FOR ARCADE DOOR */}
+      {showShop && activeDoorId === "DOOR_ARCADE" && (
+        <ArcadePopup
+          title="Arcade"
+          items={ARCADE_SHOP_ITEMS}
+          userBalance={money.balance}
+          bankBalance={money.bankBalance}
+          onPurchase={handleShopPurchase}
+          onCancel={closeDoor}
+        />
+      )}
+
+      {/* PIZZA POPUP FOR PIZZA SHOP DOOR */}
+      {showShop && activeDoorId === "DOOR_PIZZA" && (
+        <PizzaPopup
+          title="Pizza Shop"
+          items={PIZZA_SHOP_ITEMS}
+          userBalance={money.balance}
+          bankBalance={money.bankBalance}
+          onPurchase={handleShopPurchase}
+          onCancel={closeDoor}
         />
       )}
 
@@ -1062,11 +1166,27 @@ export const Overworld: React.FC<OverworldProps> = ({
         <BankPopup
           cashBalance={money.balance}
           bankBalance={money.bankBalance || 0}
+          portfolio={money.portfolio}
           history={[...(money.history || []), ...(money.bankHistory || [])]}
           onDeposit={handleDeposit}
           onWithdraw={handleWithdraw}
           onClose={() => {
             setShowBank(false);
+            closeDoor();
+          }}
+        />
+      )}
+
+      {/* NYSE POPUP */}
+      {showNyse && (
+        <NysePopup
+          cashBalance={money.balance}
+          portfolio={money.portfolio}
+          marketTrends={money.marketTrends}
+          onInvest={handleInvest}
+          onTick={handleMarketTick}
+          onClose={() => {
+            setShowNyse(false);
             closeDoor();
           }}
         />
@@ -1084,7 +1204,17 @@ const ensureMoneyState = (moneyState?: MoneyState): MoneyState => {
 
     return {
       balance: moneyState.balance ?? oldCash ?? 25,
-      bankBalance: moneyState.bankBalance ?? (oldBank ?? 0) + (oldTfsa ?? 0),
+      bankBalance: moneyState.bankBalance ?? ((oldBank ?? 0) + (oldTfsa ?? 0)),
+      portfolio: moneyState.portfolio || {
+        etf: 0,
+        stocks: 0,
+        bonds: 0,
+        crypto: 0,
+        minerals: 0,
+        real_estate: 0,
+        options: 0
+      },
+      marketTrends: moneyState.marketTrends || {} as any,
       goal: moneyState.goal,
       history: moneyState.history || [],
       bankHistory: moneyState.bankHistory || [],
@@ -1093,6 +1223,16 @@ const ensureMoneyState = (moneyState?: MoneyState): MoneyState => {
   return {
     balance: 25,
     bankBalance: 0,
+    portfolio: {
+      etf: 0,
+      stocks: 0,
+      bonds: 0,
+      crypto: 0,
+      minerals: 0,
+      real_estate: 0,
+      options: 0
+    },
+    marketTrends: {} as any,
     goal: {
       id: "headphones",
       label: "Headphones",
