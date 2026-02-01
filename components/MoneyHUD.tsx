@@ -14,12 +14,18 @@ export const MoneyHUD: React.FC<MoneyHUDProps> = ({
   onGoalClick, 
   className = '' 
 }) => {
-  // Goal progress = balance minus $5 emergency buffer
-  // This teaches players to always keep some money aside
+  // Total balance across all accounts
+  const totalBalance = money.cash + money.bank + money.tfsa;
+  
+  // Goal progress = bank + tfsa (safe savings only), minus $5 emergency buffer
   const emergencyBuffer = 5;
-  const savedForGoal = Math.max(0, money.balance - emergencyBuffer);
+  const safeSavings = money.bank + money.tfsa;
+  const savedForGoal = Math.max(0, safeSavings - emergencyBuffer);
   const progressPercent = Math.min(100, (savedForGoal / money.goal.cost) * 100);
   const amountNeeded = Math.max(0, money.goal.cost - savedForGoal);
+  
+  // Show deposit warning when cash is high
+  const showDepositWarning = money.cash >= 10;
 
   return (
     <div 
@@ -49,18 +55,58 @@ export const MoneyHUD: React.FC<MoneyHUDProps> = ({
 
         {/* Content */}
         <div className="p-3 space-y-3">
-          {/* Balance Display */}
+          {/* Cash Balance - with warning indicator */}
           <div
             style={{
-              backgroundColor: '#fffef8',
-              border: '3px solid #c8d8e8',
+              backgroundColor: showDepositWarning ? '#fef3c7' : '#fffef8',
+              border: `3px solid ${showDepositWarning ? '#f59e0b' : '#c8d8e8'}`,
               borderRadius: '4px',
               boxShadow: 'inset 2px 2px 0 #fff, inset -2px -2px 0 #b8c8d8',
             }}
             className="p-2"
           >
-            <div className="text-[8px] text-gray-500 uppercase tracking-wider mb-1">Balance</div>
-            <div className="text-gray-800 text-sm font-bold">${money.balance.toFixed(0)}</div>
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[8px] text-gray-500 uppercase tracking-wider">💵 Cash</span>
+              {showDepositWarning && <span className="text-[7px] text-amber-600">⚠️ Unsafe!</span>}
+            </div>
+            <div className="text-gray-800 text-sm font-bold">${money.cash.toFixed(2)}</div>
+            {showDepositWarning && (
+              <div className="text-[7px] text-amber-600 mt-1">Visit the bank to deposit!</div>
+            )}
+          </div>
+
+          {/* Bank Balance - safe indicator */}
+          <div
+            style={{
+              backgroundColor: '#ecfdf5',
+              border: '3px solid #10b981',
+              borderRadius: '4px',
+              boxShadow: 'inset 2px 2px 0 #fff, inset -2px -2px 0 #a7f3d0',
+            }}
+            className="p-2"
+          >
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[8px] text-gray-500 uppercase tracking-wider">🏦 Bank</span>
+              <span className="text-[7px] text-green-600">✓ Safe</span>
+            </div>
+            <div className="text-gray-800 text-sm font-bold">${money.bank.toFixed(2)}</div>
+          </div>
+
+          {/* TFSA Balance - investment indicator */}
+          <div
+            style={{
+              backgroundColor: '#eff6ff',
+              border: '3px solid #3b82f6',
+              borderRadius: '4px',
+              boxShadow: 'inset 2px 2px 0 #fff, inset -2px -2px 0 #bfdbfe',
+            }}
+            className="p-2"
+          >
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[8px] text-gray-500 uppercase tracking-wider">📈 TFSA</span>
+              <span className="text-[7px] text-blue-600">✓ Invested</span>
+            </div>
+            <div className="text-gray-800 text-sm font-bold">${money.tfsa.toFixed(2)}</div>
           </div>
 
           {/* Goal Progress - Clickable */}

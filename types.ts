@@ -46,7 +46,9 @@ export interface PlayerStats {
 }
 
 export interface MoneyState {
-  balance: number;
+  cash: number;      // Money on hand - unsafe, shown with warning
+  bank: number;      // Deposited savings - safe
+  tfsa: number;      // Tax-free investment account - safe + growth potential
   goal: MoneyGoal;
   history: ChoiceEvent[];
 }
