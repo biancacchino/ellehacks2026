@@ -5,13 +5,14 @@ export interface CoffeeItem {
   name: string;
   price: number;
   emoji?: string;
+  category?: 'need' | 'want' | 'social';
 }
 
 interface CoffeePopupProps {
   title: string;
   items: CoffeeItem[];
   userBalance: number;
-  onPurchase: (itemId: string, itemName: string, price: number) => void;
+  onPurchase: (itemId: string, itemName: string, price: number, category?: 'need' | 'want' | 'social') => void;
   onCancel: () => void;
   imagePath?: string;
 }
@@ -33,7 +34,7 @@ export const CoffeePopup: React.FC<CoffeePopupProps> = ({
 
   const handleBuy = () => {
     if (selectedItem && canAffordSelected) {
-      onPurchase(selectedItem.id, selectedItem.name, selectedItem.price);
+      onPurchase(selectedItem.id, selectedItem.name, selectedItem.price, selectedItem.category || 'want');
       setSelectedItemId(null);
     }
   };

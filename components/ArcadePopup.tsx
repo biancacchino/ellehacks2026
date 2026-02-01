@@ -1,34 +1,30 @@
 "use client";
 
 import React, { useState } from "react";
+import type { EncounterCategory } from "../types";
 
-export interface ShopItem {
+export interface ArcadeItem {
   id: string;
   name: string;
   price: number;
   emoji?: string;
-  Icon?: React.ComponentType<{ className?: string }>;
-  category?: 'need' | 'want' | 'social';
+  category?: EncounterCategory;
 }
 
-interface ShopPopupProps {
+interface ArcadePopupProps {
   title: string;
-  items: ShopItem[];
+  items: ArcadeItem[];
   userBalance: number;
-  onPurchase: (itemId: string, itemName: string, price: number, category?: 'need' | 'want' | 'social') => void;
+  onPurchase: (itemId: string, itemName: string, price: number, category?: EncounterCategory) => void;
   onCancel: () => void;
-  imagePath?: string;
-  MainIcon?: React.ComponentType<{ className?: string }>;
 }
 
-export const ShopPopup: React.FC<ShopPopupProps> = ({
+export const ArcadePopup: React.FC<ArcadePopupProps> = ({
   title,
   items,
   userBalance,
   onPurchase,
   onCancel,
-  imagePath,
-  MainIcon,
 }) => {
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
 
@@ -49,11 +45,11 @@ export const ShopPopup: React.FC<ShopPopupProps> = ({
       <div
         className="w-full max-w-2xl"
         style={{
-          backgroundColor: "#5a98b8",
-          border: "6px solid #3a7a98",
+          backgroundColor: "#10b981",
+          border: "6px solid #059669",
           borderRadius: "8px",
           boxShadow:
-            "inset 2px 2px 0 #7ab8d8, inset -2px -2px 0 #2a5a78, 8px 8px 0 rgba(0,0,0,0.5)",
+            "inset 2px 2px 0 #34d399, inset -2px -2px 0 #047857, 8px 8px 0 rgba(0,0,0,0.5)",
           fontFamily: '"Press Start 2P", monospace',
         }}
       >
@@ -61,13 +57,14 @@ export const ShopPopup: React.FC<ShopPopupProps> = ({
         <div
           className="flex items-center justify-between px-6 py-4"
           style={{
-            backgroundColor: "#3a7a98",
-            borderBottom: "4px solid #2a5a78",
+            backgroundColor: "#059669",
+            borderBottom: "4px solid #047857",
             borderRadius: "2px 2px 0 0",
           }}
         >
-          <span className="text-white text-lg font-bold tracking-wide uppercase">
-            {title}
+          <span className="text-white text-lg font-bold tracking-wide uppercase flex items-center gap-2">
+            🕹️ {title}
+            <span className="animate-pulse">🎮</span>
           </span>
           <button
             onClick={onCancel}
@@ -81,30 +78,27 @@ export const ShopPopup: React.FC<ShopPopupProps> = ({
         <div
           className="p-6"
           style={{
-            backgroundColor: "#a8c8e0",
+            backgroundColor: "#6ee7b7",
             borderRadius: "0 0 4px 4px",
           }}
         >
           <div className="grid grid-cols-2 gap-6">
-            {/* Left Side - Image/Emoji */}
+            {/* Left Side - Arcade Emoji */}
             <div className="flex items-center justify-center">
               <div
-                className="w-64 h-80 flex justify-center"
+                className="w-64 h-80 flex flex-col justify-center items-center gap-4"
                 style={{
-                  border: "4px solid #5a98b8",
-                  backgroundColor: "#e8f4f8",
+                  border: "4px solid #059669",
+                  backgroundColor: "#1a1a2e",
                   borderRadius: "4px",
-                  display: "flex",
-                  flexDirection: "column",
-                  justifyContent: "flex-start",
-                  alignItems: "center",
                 }}
               >
-                {MainIcon ? (
-                   <MainIcon className="w-48 h-48 text-[#5a98b8]" />
-                ) : (
-                   <span style={{ fontSize: "12rem", lineHeight: 1, display: "block", marginTop: "1.5rem" }}>🛍️</span>
-                )}
+                <span style={{ fontSize: "6rem", lineHeight: 1 }} className="animate-bounce">🕹️</span>
+                <div className="flex gap-2">
+                  <span className="text-2xl animate-pulse">🪙</span>
+                  <span className="text-2xl animate-pulse delay-100">🪙</span>
+                  <span className="text-2xl animate-pulse delay-200">🪙</span>
+                </div>
               </div>
             </div>
 
@@ -113,16 +107,16 @@ export const ShopPopup: React.FC<ShopPopupProps> = ({
               <h3
                 className="text-sm font-bold mb-4 text-center p-3"
                 style={{
-                  backgroundColor: "#3a7a98",
+                  backgroundColor: "#059669",
                   color: "white",
-                  border: "2px solid #2a5a78",
+                  border: "2px solid #047857",
                   borderRadius: "4px",
                 }}
               >
-                What would you like to buy?
+                Get tokens to play!
               </h3>
 
-              <div className="space-y-2 flex-1">
+              <div className="space-y-2 flex-1 max-h-64 overflow-y-auto">
                 {items.map((item) => {
                   const isSelected = selectedItemId === item.id;
                   const canAfford = userBalance >= item.price;
@@ -142,29 +136,28 @@ export const ShopPopup: React.FC<ShopPopupProps> = ({
                         backgroundColor: isSelected ? "#f0f87a" : "#fffef8",
                         border: isSelected
                           ? "3px solid #d4c854"
-                          : "2px solid #b8c8d8",
+                          : "2px solid #a7f3d0",
                         borderRadius: "4px",
                         boxShadow: isSelected
                           ? "inset 2px 2px 0 #fffeb8, inset -2px -2px 0 #c4b84a"
-                          : "inset 1px 1px 0 #fff, inset -1px -1px 0 #8898a8",
+                          : "inset 1px 1px 0 #fff, inset -1px -1px 0 #6ee7b7",
                         padding: "8px 12px",
                       }}
                     >
                       <div className="flex items-center justify-between">
                         <span
                           className="text-xs font-bold flex items-center gap-2"
-                          style={{ color: "#1a3a52" }}
+                          style={{ color: "#064e3b" }}
                         >
-                          {item.Icon ? (
-                              <item.Icon className="w-6 h-6" />
-                          ) : (
-                              item.emoji && <span className="text-xl">{item.emoji}</span>
-                          )}
+                          {item.emoji && <span className="text-xl">{item.emoji}</span>}
                           {item.name}
+                          <span className="text-[8px] px-1 py-0.5 rounded text-white bg-orange-500">
+                            Fun
+                          </span>
                         </span>
                         <span
                           className="text-xs font-bold"
-                          style={{ color: "#1a3a52" }}
+                          style={{ color: "#064e3b" }}
                         >
                           ${item.price.toFixed(2)}
                         </span>
@@ -181,7 +174,7 @@ export const ShopPopup: React.FC<ShopPopupProps> = ({
                   disabled={!selectedItem || !canAffordSelected}
                   className={`w-full py-3 px-4 text-xs font-bold uppercase tracking-wide transition-all ${
                     selectedItem && canAffordSelected
-                      ? "bg-green-500 hover:bg-green-400 text-white border-2 border-green-700 cursor-pointer"
+                      ? "bg-yellow-500 hover:bg-yellow-400 text-black border-2 border-yellow-700 cursor-pointer"
                       : "bg-gray-400 text-gray-700 border-2 border-gray-600 cursor-not-allowed"
                   }`}
                   style={{
@@ -192,7 +185,7 @@ export const ShopPopup: React.FC<ShopPopupProps> = ({
                         : "none",
                   }}
                 >
-                  Buy
+                  🪙 Buy
                 </button>
 
                 <button
@@ -203,7 +196,7 @@ export const ShopPopup: React.FC<ShopPopupProps> = ({
                     boxShadow: "inset 0 2px 0 rgba(255,255,255,0.3)",
                   }}
                 >
-                  Cancel
+                  Leave Arcade
                 </button>
               </div>
 
@@ -211,20 +204,20 @@ export const ShopPopup: React.FC<ShopPopupProps> = ({
               <div
                 className="mt-4 p-3 text-center"
                 style={{
-                  backgroundColor: "#e8f4f8",
-                  border: "2px solid #5a98b8",
+                  backgroundColor: "#d1fae5",
+                  border: "2px solid #059669",
                   borderRadius: "4px",
                 }}
               >
-                <div className="text-xs font-bold" style={{ color: "#3a7a98" }}>
+                <div className="text-xs font-bold" style={{ color: "#059669" }}>
                   Your balance: ${userBalance.toFixed(2)}
                 </div>
                 {selectedItem && (
                   <div className="text-[10px] mt-2" style={{ color: "#6b7280" }}>
                     💡 After purchase: ${Math.max(0, userBalance - selectedItem.price).toFixed(2)} remaining
-                    {userBalance - selectedItem.price < 5 && userBalance >= selectedItem.price && (
-                      <div className="text-yellow-600 mt-1 font-bold">
-                        ⚠️ Keep some money for unexpected needs!
+                    {selectedItem.price > 10 && (
+                      <div className="text-orange-600 mt-1 font-bold">
+                        🎯 Set a budget for fun! It&apos;s easy to overspend at arcades.
                       </div>
                     )}
                   </div>

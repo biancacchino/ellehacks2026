@@ -18,7 +18,17 @@ import { MONEY_GOALS } from "../constants";
 import { ShopPopup } from "./ShopPopup";
 import { BankPopup } from "./BankPopup";
 import { CoffeePopup } from "./CoffeePopup";
-import { COFFEE_SHOP_ITEMS } from "../constants";
+import { MallPopup } from "./MallPopup";
+import { MoviesPopup } from "./MoviesPopup";
+import { ArcadePopup } from "./ArcadePopup";
+import { PizzaPopup } from "./PizzaPopup";
+import { 
+  COFFEE_SHOP_ITEMS, 
+  MALL_SHOP_ITEMS, 
+  MOVIES_SHOP_ITEMS, 
+  ARCADE_SHOP_ITEMS, 
+  PIZZA_SHOP_ITEMS 
+} from "../constants";
 import { 
   BusIcon, 
   MovieIcon, 
@@ -135,20 +145,39 @@ const computeStats = (money: MoneyState): PlayerStats => {
   );
 
   // --- Financial Mindfulness ---
-  // Measures: needs vs wants ratio, balanced decisions, variety of choices
+  // Measures: needs vs wants ratio (weighted by cost), balanced decisions, variety of choices
   
-  // Needs ratio (0-100): Higher when buying needs over wants
   const purchases = history.filter(e => e.choice === 'buy');
-  const needPurchases = purchases.filter(e => e.category === 'need').length;
-  const wantPurchases = purchases.filter(e => e.category === 'want').length;
-  const socialPurchases = purchases.filter(e => e.category === 'social').length;
   
-  // Needs are good, social is neutral, pure wants lower the score
+  // Cost-weighted needs score: larger purchases have more impact
   let needsScore = 50;
   if (purchases.length > 0) {
-    // Needs = +1, Social = +0.5, Wants = 0
-    const weightedSum = (needPurchases * 1) + (socialPurchases * 0.5) + (wantPurchases * 0);
-    needsScore = Math.min(100, (weightedSum / purchases.length) * 100);
+    const totalSpent = purchases.reduce((sum, e) => sum + (e.cost || 0), 0);
+    
+    if (totalSpent > 0) {
+      // Weight each category by its cost contribution
+      // Needs = +1.0, Social = random 0.3-0.5 (slightly negative to neutral), Wants = 0
+      let weightedSum = 0;
+      purchases.forEach(e => {
+        const cost = e.cost || 0;
+        let categoryWeight = 0;
+        
+        if (e.category === 'need') {
+          categoryWeight = 1.0;
+        } else if (e.category === 'social') {
+          // Random between slightly negative (0.3) and neutral (0.5)
+          categoryWeight = Math.random() < 0.5 ? 0.3 : 0.5;
+        } else {
+          // 'want' category
+          categoryWeight = 0;
+        }
+        
+        // Weight by cost relative to total spending
+        weightedSum += categoryWeight * (cost / totalSpent);
+      });
+      
+      needsScore = Math.min(100, weightedSum * 100);
+    }
   }
   
   // Balanced decisions (0-100): Not always buying OR always skipping shows thoughtfulness
@@ -325,7 +354,7 @@ export const Overworld: React.FC<OverworldProps> = ({
     }
 
     // Handle Shops
-    if (activeDoorId === 'DOOR_MARKET' || activeDoorId === 'DOOR_MALL' || activeDoorId === 'DOOR_COFFEE') {
+    if (activeDoorId === 'DOOR_MARKET' || activeDoorId === 'DOOR_MALL' || activeDoorId === 'DOOR_COFFEE' || activeDoorId === 'DOOR_MOVIES' || activeDoorId === 'DOOR_ARCADE' || activeDoorId === 'DOOR_PIZZA') {
         setShowShop(true);
         // Do not close door yet, shop is an overlay
         return;
@@ -382,14 +411,29 @@ export const Overworld: React.FC<OverworldProps> = ({
     itemId: string,
     itemName: string,
     price: number,
+    category: EncounterCategory = 'want',
   ) => {
     // Round to 2 decimal places to avoid floating point issues
     // Deduct from balance (money on hand)
     const newBalance = Math.round(Math.max(0, money.balance - price) * 100) / 100;
     
+    // Create a choice event to record in history (affects stats)
+    const event: ChoiceEvent = {
+      id: createEventId(),
+      encounterId: activeDoorId || activeEncounterId || `shop_${itemId}`,
+      choice: 'buy',
+      cost: price,
+      category: category,
+      deltas: {
+        balanceAfter: newBalance,
+        notes: [`Purchased ${itemName} for $${price.toFixed(2)}`],
+      },
+    };
+    
     const updatedMoney: MoneyState = {
       ...money,
       balance: newBalance,
+      history: [...money.history, event],
     };
     saveMoneyState(updatedMoney);
 
@@ -759,6 +803,50 @@ export const Overworld: React.FC<OverworldProps> = ({
           onPurchase={handleShopPurchase}
           onCancel={closeDoor}
           imagePath={"/assets/ui/coffee-bar.png"}
+        />
+      )}
+
+      {/* MALL POPUP FOR MALL DOOR */}
+      {showShop && activeDoorId === "DOOR_MALL" && (
+        <MallPopup
+          title="Mall"
+          items={MALL_SHOP_ITEMS}
+          userBalance={money.balance}
+          onPurchase={handleShopPurchase}
+          onCancel={closeDoor}
+        />
+      )}
+
+      {/* MOVIES POPUP FOR MOVIES DOOR */}
+      {showShop && activeDoorId === "DOOR_MOVIES" && (
+        <MoviesPopup
+          title="Movies"
+          items={MOVIES_SHOP_ITEMS}
+          userBalance={money.balance}
+          onPurchase={handleShopPurchase}
+          onCancel={closeDoor}
+        />
+      )}
+
+      {/* ARCADE POPUP FOR ARCADE DOOR */}
+      {showShop && activeDoorId === "DOOR_ARCADE" && (
+        <ArcadePopup
+          title="Arcade"
+          items={ARCADE_SHOP_ITEMS}
+          userBalance={money.balance}
+          onPurchase={handleShopPurchase}
+          onCancel={closeDoor}
+        />
+      )}
+
+      {/* PIZZA POPUP FOR PIZZA SHOP DOOR */}
+      {showShop && activeDoorId === "DOOR_PIZZA" && (
+        <PizzaPopup
+          title="Pizza Shop"
+          items={PIZZA_SHOP_ITEMS}
+          userBalance={money.balance}
+          onPurchase={handleShopPurchase}
+          onCancel={closeDoor}
         />
       )}
 
