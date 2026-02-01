@@ -16,6 +16,8 @@ import { ENCOUNTERS } from "../phaser/data/encounters";
 import { MoneyHUD } from "./MoneyHUD";
 import { MONEY_GOALS } from "../constants";
 import { ShopPopup } from "./ShopPopup";
+import { CoffeePopup } from "./CoffeePopup";
+import { COFFEE_SHOP_ITEMS } from "../constants";
 import { 
   BusIcon, 
   MovieIcon, 
@@ -186,11 +188,14 @@ export const Overworld: React.FC<OverworldProps> = ({
     if (activeDoorId) {
       notifyDecision(activeDoorId, "yes");
     }
-    
     // For market door, show shop popup only after confirmation
     if (activeDoorId === 'DOOR_MARKET') {
       setShowShop(true);
-      // Do not close door yet, shop is an overlay
+      return;
+    }
+    // For coffee shop door, show coffee popup only after confirmation
+    if (activeDoorId === 'DOOR_COFFEE') {
+      setShowShop(true);
       return;
     }
     // For mall, keep previous logic
@@ -198,7 +203,6 @@ export const Overworld: React.FC<OverworldProps> = ({
       setShowShop(true);
       return;
     }
-
     // TODO: Navigate to building Scene or Page
     console.log(`Entering ${DOOR_MAPPING[activeDoorId || ""]}`);
     alert(`Entered ${DOOR_MAPPING[activeDoorId || ""]}! (Placeholder)`);
@@ -504,6 +508,18 @@ export const Overworld: React.FC<OverworldProps> = ({
           userBalance={money.balance}
           onPurchase={handleShopPurchase}
           onCancel={closeDoor}
+        />
+      )}
+
+      {/* COFFEE POPUP FOR COFFEE SHOP DOOR */}
+      {showShop && activeDoorId === "DOOR_COFFEE" && (
+        <CoffeePopup
+          title="Coffee Shop"
+          items={COFFEE_SHOP_ITEMS}
+          userBalance={money.balance}
+          onPurchase={handleShopPurchase}
+          onCancel={closeDoor}
+          imagePath={"/assets/ui/coffee-bar.png"}
         />
       )}
 
