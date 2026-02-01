@@ -3,11 +3,8 @@ import { useCallback, useRef, useEffect } from 'react';
 
 export const useRetroAudio = () => {
     const audioContextRef = useRef<AudioContext | null>(null);
-    const musicOscillatorsRef = useRef<OscillatorNode[]>([]);
     const gainNodesRef = useRef<GainNode[]>([]);
-    const isPlayingMusic = useRef(false);
-    const musicIntervalRef = useRef<NodeJS.Timeout | null>(null);
-
+    
     useEffect(() => {
         // Initialize Audio Context on first interactive action or mount if allowed
         const AudioContextClass = (window.AudioContext || (window as any).webkitAudioContext);
@@ -16,8 +13,7 @@ export const useRetroAudio = () => {
         }
 
         return () => {
-            stopMusic();
-            if (audioContextRef.current) {
+             if (audioContextRef.current) {
                 audioContextRef.current.close();
             }
         };
@@ -210,63 +206,11 @@ export const useRetroAudio = () => {
 
 
     const startBackgroundMusic = useCallback(() => {
-        if (isPlayingMusic.current || !audioContextRef.current) return;
-        
-        isPlayingMusic.current = true;
-        
-        // Happy Upbeat Melody (Lower Octave C Major Arpeggio Loop)
-        const melody = [
-            130.81, // C3
-            164.81, // E3
-            196.00, // G3
-            261.63, // C4
-            196.00, // G3
-            164.81, // E3
-        ];
-        
-        let noteIndex = 0;
-
-        const playNote = () => {
-             if (!isPlayingMusic.current || !audioContextRef.current) return;
-             const ctx = audioContextRef.current;
-             
-             const osc = ctx.createOscillator();
-             const gain = ctx.createGain();
-             
-             // Triangle wave for a clean, chirpy game sound
-             osc.type = 'triangle'; 
-             osc.frequency.value = melody[noteIndex];
-             
-             // Short, bouncy envelope
-             const now = ctx.currentTime;
-             gain.gain.setValueAtTime(0.03, now); // Low volume
-             gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
-             
-             osc.connect(gain);
-             gain.connect(ctx.destination);
-             
-             osc.start(now);
-             osc.stop(now + 0.25);
-             
-             noteIndex = (noteIndex + 1) % melody.length;
-        };
-
-        playNote();
-        // Loop: ~150bpm tempo
-        musicIntervalRef.current = setInterval(playNote, 400);
-
+        // Background music removed
     }, []);
 
     const stopMusic = useCallback(() => {
-        if (musicIntervalRef.current) {
-            clearInterval(musicIntervalRef.current);
-            musicIntervalRef.current = null;
-        }
-        musicOscillatorsRef.current.forEach(osc => {
-             try { osc.stop(); } catch(e) {}
-        });
-        musicOscillatorsRef.current = [];
-        isPlayingMusic.current = false;
+        // Background music removed
     }, []);
 
     return {
