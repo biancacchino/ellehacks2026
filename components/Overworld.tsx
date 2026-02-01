@@ -276,32 +276,53 @@ export const Overworld: React.FC<OverworldProps> = ({
     }
   };
 
-  const enterBuilding = () => {
-    if (activeDoorId) {
-      notifyDecision(activeDoorId, "yes");
-    }
-    // For market door, show shop popup only after confirmation
-    if (activeDoorId === 'DOOR_MARKET') {
-      setShowShop(true);
-      return;
-    }
-    // For coffee shop door, show coffee popup only after confirmation
-    if (activeDoorId === 'DOOR_COFFEE') {
-      setShowShop(true);
+const enterBuilding = () => {
+  if (activeDoorId) {
+    notifyDecision(activeDoorId, "yes");
+  }
+  
+  // Handle Work building - earn random $15-$20 with cooldown
+  if (activeDoorId === 'DOOR_WORK') {
+    const now = Date.now();
+    
+    // Check if still on cooldown
+    if (now < workCooldownEnd) {
+      const secondsLeft = Math.ceil((workCooldownEnd - now) / 1000);
+      alert(`You need to rest! Come back in ${secondsLeft} seconds.`);
+      closeDoor();
       return;
     }
     
-    // Check if it's a shop door
-    if (activeDoorId === 'DOOR_MARKET' || activeDoorId === 'DOOR_MALL') {
-        setShowShop(true);
-        // Do not close door yet, shop is an overlay
-        return;
-    }
-    // TODO: Navigate to building Scene or Page
-    console.log(`Entering ${DOOR_MAPPING[activeDoorId || ""]}`);
-    alert(`Entered ${DOOR_MAPPING[activeDoorId || ""]}! (Placeholder)`);
-    closeDoor();
-  };
+    // Earn money and start 20 second cooldown
+    const earned = Math.floor(Math.random() * 6) + 15; // 15-20 inclusive
+    earnMoney(earned, 'work');
+    setWorkEarnings(earned);
+    setWorkCooldownEnd(now + 20000);
+    return;
+  }
+  
+  // For market door, show shop popup only after confirmation
+  if (activeDoorId === 'DOOR_MARKET') {
+    setShowShop(true);
+    return;
+  }
+  // For coffee shop door, show coffee popup only after confirmation
+  if (activeDoorId === 'DOOR_COFFEE') {
+    setShowShop(true);
+    return;
+  }
+  
+  // Check if it's a shop door
+  if (activeDoorId === 'DOOR_MARKET' || activeDoorId === 'DOOR_MALL') {
+    setShowShop(true);
+    return;
+  }
+  
+  // TODO: Navigate to building Scene or Page
+  console.log(`Entering ${DOOR_MAPPING[activeDoorId || ""]}`);
+  alert(`Entered ${DOOR_MAPPING[activeDoorId || ""]}! (Placeholder)`);
+  closeDoor();
+};
 
   const handleBusTravel = (destination: (typeof BUS_STOPS)[0]) => {
     if (!activeDoorId) return;
