@@ -14,8 +14,12 @@ export const MoneyHUD: React.FC<MoneyHUDProps> = ({
   onGoalClick, 
   className = '' 
 }) => {
-  const progressPercent = Math.min(100, (money.balance / money.goal.cost) * 100);
-  const amountNeeded = Math.max(0, money.goal.cost - money.balance);
+  // Goal progress = balance minus $5 emergency buffer
+  // This teaches players to always keep some money aside
+  const emergencyBuffer = 5;
+  const savedForGoal = Math.max(0, money.balance - emergencyBuffer);
+  const progressPercent = Math.min(100, (savedForGoal / money.goal.cost) * 100);
+  const amountNeeded = Math.max(0, money.goal.cost - savedForGoal);
 
   return (
     <div 
@@ -105,7 +109,7 @@ export const MoneyHUD: React.FC<MoneyHUDProps> = ({
                 {progressPercent >= 100 ? (
                   <span className="text-green-600">✓ Goal reached!</span>
                 ) : (
-                  <span>${money.balance} of ${money.goal.cost} saved</span>
+                  <span>${savedForGoal.toFixed(0)} of ${money.goal.cost} saved</span>
                 )}
               </div>
             </div>

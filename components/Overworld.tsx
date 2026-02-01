@@ -311,18 +311,25 @@ export const Overworld: React.FC<OverworldProps> = ({
     itemName: string,
     price: number,
   ) => {
-    const newBalance = Math.max(0, money.balance - price);
+    // Round to 2 decimal places to avoid floating point issues
+    const newBalance = Math.round(Math.max(0, money.balance - price) * 100) / 100;
+    
     const updatedMoney: MoneyState = {
       ...money,
       balance: newBalance,
     };
     saveMoneyState(updatedMoney);
 
-    // Mark encounter complete and close shop
+    // Handle encounter-based shop (Corner Store, Arcade, etc.)
     if (activeEncounterId) {
       markEncounterComplete(activeEncounterId);
+      closeEncounter();
+    } 
+    // Handle door-based shop (Market, Mall)
+    else if (activeDoorId) {
+      setShowShop(false);
+      closeDoor();
     }
-    closeEncounter();
   };
 
   // Change savings goal
