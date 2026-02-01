@@ -164,8 +164,8 @@ export class World extends Phaser.Scene {
 
     // Helper to create door trigger
     const createDoor = (x, y, w, h, name, color = 0x00ff00) => {
-        // DEBUGGING: Set alpha to 0.5 to see the box. Set to 0 to hide it.
-        const zone = this.add.rectangle(x + w/2, y + h/2, w, h, color, 0); 
+        // Set alpha to 0 to hide the box.
+        const zone = this.add.rectangle(x + w/2, y + h/2, w, h, color, 0); // alpha 0 (invisible)
         this.doors.add(zone);
         zone.name = name;
     };
@@ -178,7 +178,7 @@ export class World extends Phaser.Scene {
     // 1. market STORE (Top Left)
     createBuilding(400, 415, 300, 170, 'COLL_CORNER_STORE'); 
 
-    createDoor(570, 530, 40, 60, 'DOOR_WORK');
+    createDoor(570, 530, 40, 60, 'DOOR_MARKET');
 
 
     // 2. arcade (Top Middle)
