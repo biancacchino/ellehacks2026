@@ -99,7 +99,7 @@ export class World extends Phaser.Scene {
     this.cameras.main.setBounds(0, 0, this.mapWidthPx, this.mapHeightPx);
     
     // Zoom in for better view of the big map (2x zoom)
-    this.cameras.main.setZoom(0.40);
+    this.cameras.main.setZoom(2.00);
     
     // Start camera at top-left corner (0, 0)
     // this.cameras.main.scrollX = 0; // Let follow handle it
@@ -134,11 +134,11 @@ export class World extends Phaser.Scene {
     }).setScrollFactor(0);
 
     // Debug: show player position
-    this.debugText = this.add.text(10, 50, '', {
-        fontSize: '16px',
-        fill: '#00ff00',
-        backgroundColor: '#000000'
-    }).setScrollFactor(0);
+    // this.debugText = this.add.text(10, 50, '', {
+    //     fontSize: '16px',
+    //     fill: '#00ff00',
+    //     backgroundColor: '#000000'
+    // }).setScrollFactor(0);
 
     // Track door interaction
     this.currentOverlappingDoor = null;
@@ -155,7 +155,7 @@ export class World extends Phaser.Scene {
         // x, y are center coordinates by default in Phaser arcade physics
         // But for exact placement it's easier to think in top-left
         // DEBUGGING: Set alpha to 0.5 to see the box. Set to 0 to hide it.
-        const zone = this.add.rectangle(x + w/2, y + h/2, w, h, color, 0.5); 
+        const zone = this.add.rectangle(x + w/2, y + h/2, w, h, color, 0); 
         this.buildings.add(zone); // Add to static group
         zone.name = name;
         // Adjust body size if needed (padding)
@@ -165,7 +165,7 @@ export class World extends Phaser.Scene {
     // Helper to create door trigger
     const createDoor = (x, y, w, h, name, color = 0x00ff00) => {
         // DEBUGGING: Set alpha to 0.5 to see the box. Set to 0 to hide it.
-        const zone = this.add.rectangle(x + w/2, y + h/2, w, h, color, 0.5); 
+        const zone = this.add.rectangle(x + w/2, y + h/2, w, h, color, 0); 
         this.doors.add(zone);
         zone.name = name;
     };
@@ -303,14 +303,18 @@ export class World extends Phaser.Scene {
     if (this.currentOverlappingDoor !== doorName) {
         this.currentOverlappingDoor = doorName;
         this.overlapEnterTime = now;
+        this.hasTriggeredForCurrentOverlap = false; // Reset trigger flag for new zone entry
         console.log(`Entered ${doorName}. Waiting 1s...`);
         return; 
     }
 
     // 2. Waiting (debounce already handled inside handleDoorTrigger or we can add extra check)
-    // Check if 1 second has passed
-    if (now - this.overlapEnterTime >= 1000) {
-        this.handleDoorTrigger(doorName);
+    // Check if 1 second has passed AND we haven't triggered yet for this specific entry
+    if (!this.hasTriggeredForCurrentOverlap && now - this.overlapEnterTime >= 1000) {
+        const triggered = this.handleDoorTrigger(doorName);
+        if (triggered) {
+            this.hasTriggeredForCurrentOverlap = true;
+        }
     }
   }
 
@@ -318,7 +322,7 @@ export class World extends Phaser.Scene {
       const now = this.time.now;
       // Increased cooldown to 3000ms (3 seconds) to prevent re-triggering same popup immediately
       if (this.lastTriggerTime && now - this.lastTriggerTime < 3000) {
-          return;
+          return false;
       }
       this.lastTriggerTime = now;
 
@@ -343,23 +347,7 @@ export class World extends Phaser.Scene {
           callbacks.onEncounter(doorName);
       }
       
-      // Example routing (internal game logic if needed)
-      switch(doorName) {
-          case 'DOOR_CORNER_STORE':
-              // Access corner store UI
-              break;
-          case 'DOOR_ARCADE':
-              // Start arcade mini-game
-              break;
-          case 'DOOR_APARTMENT':
-              // Go home / sleep
-              break;
-          case 'DOOR_MALL':
-              // Open shopping menu
-              break;
-          default:
-              break;
-      }
+      return true;
   }
 
   // Push player out of the door zone slightly
@@ -381,8 +369,10 @@ export class World extends Phaser.Scene {
           this.player.sprite.body.setVelocity(0, 0);
       }
       
-      // Reset trigger timer to allow re-entry
-      this.lastTriggerTime = 0;
+      // Do NOT reset trigger timer to 0 here. 
+      // Keeping the timestamp ensures the 3s cooldown is respected 
+      // even after the user cancels/closes the popup.
+      // this.lastTriggerTime = 0; 
   }
 
 
@@ -452,9 +442,9 @@ export class World extends Phaser.Scene {
     }
 
     // Update debug text with player position
-    if (this.debugText && this.player && this.player.sprite) {
-        this.debugText.setText(`x: ${Math.round(this.player.sprite.x)}, y: ${Math.round(this.player.sprite.y)}`);
-    }
+    // if (this.debugText && this.player && this.player.sprite) {
+    //     this.debugText.setText(`x: ${Math.round(this.player.sprite.x)}, y: ${Math.round(this.player.sprite.y)}`);
+    // }
 
     // Reset overlap if player left the zone
     if (this.currentOverlappingDoor && (this.time.now - this.lastOverlapFrameTime > 50)) {
