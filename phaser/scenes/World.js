@@ -95,7 +95,8 @@ export class World extends Phaser.Scene {
     // this.cameras.main.scrollY = 0;
     
     // Camera follow with slight smoothing (0.1)
-    this.cameras.main.startFollow(this.player.sprite, true, 0.1, 0.1);
+    // Offset Y: 80 shifts the camera UP, so player appears LOWER on screen (showing more of what's above)
+    this.cameras.main.startFollow(this.player.sprite, true, 0.1, 0.1, 0, 80);
 
 
     // Add WASD keys for movement
