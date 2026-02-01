@@ -7,6 +7,7 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { useRouter } from "next/navigation";
 import type Phaser from "phaser";
 import {
   UserProfile,
@@ -33,12 +34,17 @@ import { BankPopup } from "./BankPopup";
 import { NysePopup } from "./NysePopup";
 import { LibraryPopup } from "./LibraryPopup";
 import { ApartmentRestPopup } from "./ApartmentRestPopup";
-import {
-  COFFEE_SHOP_ITEMS,
-  MALL_SHOP_ITEMS,
-  PIZZA_SHOP_ITEMS,
-  ARCADE_SHOP_ITEMS,
-  MOVIES_SHOP_ITEMS,
+import { GoalReachedPopup } from "./GoalReachedPopup";
+import { MallPopup } from "./MallPopup";
+import { MoviesPopup } from "./MoviesPopup";
+import { ArcadePopup } from "./ArcadePopup";
+import { PizzaPopup } from "./PizzaPopup";
+import { 
+  COFFEE_SHOP_ITEMS, 
+  MALL_SHOP_ITEMS, 
+  MOVIES_SHOP_ITEMS, 
+  ARCADE_SHOP_ITEMS, 
+  PIZZA_SHOP_ITEMS 
 } from "../constants";
 import {
   BusIcon,
@@ -250,6 +256,7 @@ export const Overworld: React.FC<OverworldProps> = ({
   user,
   onLogout,
 }: OverworldProps) => {
+  const router = useRouter();
   const gameRef = useRef<Phaser.Game | null>(null);
   const [activeEncounterId, setActiveEncounterId] = useState<string | null>(
     null,
@@ -271,6 +278,11 @@ export const Overworld: React.FC<OverworldProps> = ({
   const [isTraveling, setIsTraveling] = useState(false);
   const [workEarnings, setWorkEarnings] = useState<number | null>(null);
   const [workCooldownEnd, setWorkCooldownEnd] = useState<number>(0);
+  
+  // Goal reached popup state
+  const [showGoalReachedPopup, setShowGoalReachedPopup] = useState(false);
+  // Track the balance when we last showed the prompt (to allow re-prompt after earning more)
+  const goalPromptShownAtBalanceRef = useRef<number>(-1);
   const { 
       startBackgroundMusic, 
       playFootstep, 
@@ -303,6 +315,60 @@ export const Overworld: React.FC<OverworldProps> = ({
   useEffect(() => {
     setMoney(ensureMoneyState(user.gameState.money));
   }, [user.username]);
+
+  // Check if user has reached their savings goal
+  useEffect(() => {
+    const goalCost = money.goal?.cost || 0;
+    const bankBalance = money.bankBalance || 0;
+    
+    // Only show popup if:
+    // 1. Bank balance meets or exceeds goal cost
+    // 2. Balance is higher than when we last showed the prompt (so they earned more)
+    // 3. Not currently showing the popup
+    if (
+      goalCost > 0 &&
+      bankBalance >= goalCost &&
+      bankBalance > goalPromptShownAtBalanceRef.current &&
+      !showGoalReachedPopup
+    ) {
+      setShowGoalReachedPopup(true);
+    }
+  }, [money.bankBalance, money.goal?.cost, showGoalReachedPopup]);
+
+  const handleGoalPurchaseConfirm = () => {
+    const goalCost = money.goal.cost;
+    const newBankBalance = Math.round((money.bankBalance - goalCost) * 100) / 100;
+    
+    // Record the goal purchase as a choice event
+    const event: ChoiceEvent = {
+      id: createEventId(),
+      encounterId: `goal_${money.goal.id}`,
+      choice: 'buy',
+      cost: goalCost,
+      category: 'want', // Goals are typically wants
+      deltas: {
+        balanceAfter: money.balance,
+        notes: [`🎉 Purchased ${money.goal.label} for $${goalCost.toFixed(2)}!`],
+      },
+    };
+    
+    const updatedMoney: MoneyState = {
+      ...money,
+      bankBalance: newBankBalance,
+      history: [...money.history, event],
+    };
+    saveMoneyState(updatedMoney);
+    
+    setShowGoalReachedPopup(false);
+    // Navigate to summary with completed flag
+    router.push("/summary?completed=true");
+  };
+
+  const handleGoalPurchaseDecline = () => {
+    // Record current balance so we don't re-prompt until they earn more
+    goalPromptShownAtBalanceRef.current = money.bankBalance;
+    setShowGoalReachedPopup(false);
+  };
 
   const handleLogout = () => {
     clearSession();
@@ -1039,6 +1105,10 @@ playInvestmentMade();
             setShowApartmentRest(false);
             closeDoor();
           }}
+          onGiveUp={() => {
+            setShowApartmentRest(false);
+            router.push("/summary?completed=false");
+          }}
         />
       )}
 
@@ -1278,6 +1348,16 @@ playInvestmentMade();
             setShowNyse(false);
             closeDoor();
           }}
+        />
+      )}
+
+      {/* GOAL REACHED POPUP */}
+      {showGoalReachedPopup && (
+        <GoalReachedPopup
+          goal={money.goal}
+          bankBalance={money.bankBalance}
+          onConfirm={handleGoalPurchaseConfirm}
+          onDecline={handleGoalPurchaseDecline}
         />
       )}
     </div>
