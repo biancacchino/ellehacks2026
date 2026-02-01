@@ -13,11 +13,11 @@ export const createInitialGameState = (): GameState => ({
 });
 
 const createInitialMoneyState = (): MoneyState => ({
-  cash: 25,
-  bank: 0,
-  tfsa: 0,
+  balance: 25,
+  bankBalance: 0,
   goal: getDefaultGoal(),
-  history: []
+  history: [],
+  bankHistory: []
 });
 
 const getDefaultGoal = (): MoneyGoal => ({
