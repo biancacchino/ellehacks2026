@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { useRetroAudio } from '../hooks/useRetroAudio';
 
 export const BeachPopup: React.FC<{ onClose: () => void }> = ({ onClose }) => {
-    const { startBackgroundMusic } = useRetroAudio();
+    // const { startBackgroundMusic } = useRetroAudio();
 
     useEffect(() => {
         // Optional: Play different ambient sounds for beach?
