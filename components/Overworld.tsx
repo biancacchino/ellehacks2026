@@ -278,7 +278,7 @@ export const Overworld: React.FC<OverworldProps> = ({
   const [workEarnings, setWorkEarnings] = useState<number | null>(null);
   const [workCooldownEnd, setWorkCooldownEnd] = useState<number>(0);
   const {
-    startBackgroundMusic,
+    // startBackgroundMusic, // Disabled - background music removed
     playFootstep,
     playMoneyGained,
     playInvestmentMade,
@@ -289,22 +289,7 @@ export const Overworld: React.FC<OverworldProps> = ({
   // Compute player stats from money history
   const playerStats = useMemo(() => computeStats(money), [money]);
 
-  useEffect(() => {
-    // Attempt to start music on mount (or first interaction dependent)
-    const handleInteraction = () => {
-      startBackgroundMusic();
-      window.removeEventListener("click", handleInteraction);
-      window.removeEventListener("keydown", handleInteraction);
-    };
-
-    window.addEventListener("click", handleInteraction);
-    window.addEventListener("keydown", handleInteraction);
-
-    return () => {
-      window.removeEventListener("click", handleInteraction);
-      window.removeEventListener("keydown", handleInteraction);
-    };
-  }, [startBackgroundMusic]);
+  // Background music removed - no longer auto-playing on interaction
 
   useEffect(() => {
     setMoney(ensureMoneyState(user.gameState.money));
