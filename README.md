@@ -2,6 +2,9 @@
 
 A retro, choice-driven financial adventure where players navigate everyday spending, saving, and investing decisions to build healthy money habits.
 
+- [Devpost](https://devpost.com/software/wealth-quest-29uwn5?ref_content=my-projects-tab&ref_feature=my_projects)
+- [Demo](http://ellehacks2026.vercel.app/)
+
 ## 🌟 Overview
 
 Wealth Quest is a story-driven financial literacy game that blends a pixel-art overworld with practical money decisions. Players explore, make choices, and learn core concepts like budgeting, saving, and investing through short, engaging interactions.
